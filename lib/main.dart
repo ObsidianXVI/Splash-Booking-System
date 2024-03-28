@@ -18,17 +18,17 @@ late String userId;
 
 void main() async {
   await Firebase.initializeApp(options: webOptions);
-  runApp(const MyApp());
+  runApp(const SplashApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class SplashApp extends StatelessWidget {
+  const SplashApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Splash Booking',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
