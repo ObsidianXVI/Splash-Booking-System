@@ -55,6 +55,17 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  fonts:
+    - family: RubikScribble
+      fonts:
+        - asset: assets/fonts/Rubik_Scribble/RubikScribble-Regular.ttf
+
+    - family: IBMPlexSans
+      fonts:
+        - asset: assets/fonts/IBM_Plex_Sans/IBMPlexSans-Regular.ttf
+        - asset: assets/fonts/IBM_Plex_Sans/IBMPlexSans-Medium.ttf
+        - asset: assets/fonts/IBM_Plex_Sans/IBMPlexSans-Bold.ttf
+
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg
