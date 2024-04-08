@@ -9,32 +9,29 @@ class MakeBooking extends StatefulWidget {
 
 class MakeBookingState extends State<MakeBooking> {
   bool hasFetched = false;
+  final Map<String, DocumentSnapshot<Map<String, dynamic>>> bookings = {};
   final List<DocumentSnapshot<Map<String, dynamic>>> activities = [];
-  final List<List<String>> slots = [];
-  final List<List<int>> remaining = [];
-  final List<bool> hasBookedBefore = [];
 
-  Future<List<String>> getBookedActivities() async {
-    return [
-      for (final x in (await db
-              .collection('bookings')
-              .where('userId', isEqualTo: userId)
-              .get())
-          .docs)
-        x.data()['activityId'] as String
-    ];
+  /// The timestamp name of each slot for each activity
+  final List<List<String>> slots = [];
+
+  /// The number of slots remaining for each slot in each activity
+  final List<List<int>> remaining = [];
+
+  Future<void> getBookings() async {
+    bookings.addEntries([
+      for (final b in await DB.getBookings())
+        MapEntry(b.data()['activityId'], b)
+    ]);
   }
 
   Future<void> getActivities() async {
     if (hasFetched) return;
-    final booked = await getBookedActivities();
-    int i = 0;
+    await getBookings();
     for (final a in (await db.collection('activities').get()).docs) {
       activities.add(a);
       slots.add((a.data()['slots'] as List).cast<String>());
       remaining.add((a.data()['remaining'] as List).cast<int>());
-      hasBookedBefore.add(booked.contains(a.id));
-      i += 1;
     }
     hasFetched = true;
     return;
@@ -111,11 +108,34 @@ class MakeBookingState extends State<MakeBooking> {
                         Navigator.of(context)
                           ..pop()
                           ..push(MaterialPageRoute(
-                              builder: (_) => const ViewBookings()));
+                              builder: (_) => const MakeBooking()));
                       }
                     },
                     child: Text(oldSlot == null ? "Book" : "Update"),
                   ),
+                  if (oldSlot != null)
+                    TextButton(
+                      onPressed: () async {
+                        remaining[i][chosenSlot] += 1;
+                        await db
+                            .collection('bookings')
+                            .doc(activities[i].id)
+                            .delete();
+
+                        await db
+                            .collection('activities')
+                            .doc(activities[i].id)
+                            .update({'remaining': remaining[i]});
+
+                        if (mounted) {
+                          Navigator.of(context)
+                            ..pop()
+                            ..push(MaterialPageRoute(
+                                builder: (_) => const MakeBooking()));
+                        }
+                      },
+                      child: const Text("Remove booking"),
+                    ),
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(),
                     child: const Text("Cancel"),
@@ -132,95 +152,99 @@ class MakeBookingState extends State<MakeBooking> {
   @override
   Widget build(BuildContext context) {
     return Material(
-      child: FutureBuilder(
-        future: getActivities(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(
-              child: Container(
-                width: 100,
-                height: 100,
-                child: const CircularProgressIndicator(),
-              ),
-            );
-          } else {
-            if (activities.isEmpty) return const Text("No activities!");
-            return ListView.separated(
-              itemBuilder: (ctx, i) {
-                return Center(
-                  child: Container(
-                    child: Row(
-                      children: [
-                        Column(
-                          children: [
-                            Text("Name: ${activities[i].data()!['name']}"),
-                            if (hasBookedBefore[i])
-                              const Text("Already booked"),
-                            if (!hasBookedBefore[i])
-                              ...List<Text>.generate(slots[i].length, (int sl) {
-                                return Text(
-                                    "${slots[i][sl]}: ${remaining[i][sl]} slots left");
-                              }),
-                          ],
-                        ),
-                        Column(
-                          children: [
-                            if (!hasBookedBefore[i])
-                              TextButton(
-                                onPressed: () => bookingDialog(i),
-                                child: const Text("Book This"),
+      child: Padding(
+        padding: const EdgeInsets.only(top: 20),
+        child: FutureBuilder(
+          future: getActivities(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return Center(
+                child: Container(
+                  width: 100,
+                  height: 100,
+                  child: const CircularProgressIndicator(),
+                ),
+              );
+            } else {
+              if (activities.isEmpty) return const Text("No activities!");
+              return Center(
+                child: SizedBox(
+                  width: 600,
+                  child: ListView.separated(
+                    itemBuilder: (ctx, i) {
+                      final String actId = activities[i].id;
+                      final bool hasBeenBooked = bookings.containsKey(actId);
+                      final List<Widget> buttonContent = [
+                        if (hasBeenBooked)
+                          Text(
+                              "Booked for ${slots[i][bookings[actId]!.data()!['slot']]}"),
+                        if (!hasBeenBooked)
+                          ...List<Text>.generate(slots[i].length, (int sl) {
+                            return Text(
+                              "${slots[i][sl]}: ${remaining[i][sl]} slots left",
+                              textAlign: TextAlign.right,
+                            );
+                          })
+                      ];
+                      return Center(
+                        child: Container(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    "${activities[i].data()!['name']}",
+                                    textAlign: TextAlign.right,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  ...buttonContent
+                                  // ${slots[i][bookings[activities[i].id]!.data()!['slot']]}
+                                  ,
+                                ],
                               ),
-                            if (hasBookedBefore[i])
-                              TextButton(
-                                onPressed: () async {
-                                  final b = (await db
-                                          .collection('bookings')
-                                          .where('userId', isEqualTo: userId)
-                                          .where('activityId',
-                                              isEqualTo: activities[i].id)
-                                          .get())
-                                      .docs
-                                      .first;
-                                  bookingDialog(i, b.data()['slot']);
-                                },
-                                child: const Text("Edit booking"),
+                              const SizedBox(width: 5),
+                              Column(
+                                children: [
+                                  if (!hasBeenBooked)
+                                    TextButton(
+                                      onPressed: () => bookingDialog(i),
+                                      child: const Text("Book This"),
+                                    ),
+                                  if (hasBeenBooked)
+                                    TextButton(
+                                      onPressed: () async {
+                                        final b = (await db
+                                                .collection('bookings')
+                                                .where('userId',
+                                                    isEqualTo: userId)
+                                                .where('activityId',
+                                                    isEqualTo: activities[i].id)
+                                                .get())
+                                            .docs
+                                            .first;
+                                        bookingDialog(i, b.data()['slot']);
+                                      },
+                                      child: const Text("Edit booking"),
+                                    ),
+                                ],
                               ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ],
-                    ),
+                      );
+                    },
+                    separatorBuilder: (_, __) => const SizedBox(height: 20),
+                    itemCount: activities.length,
                   ),
-                );
-              },
-              separatorBuilder: (_, __) => const SizedBox(height: 5),
-              itemCount: activities.length,
-            );
-          }
-        },
-      ),
-    );
-  }
-}
-
-class ActivityBookingForm extends StatefulWidget {
-  const ActivityBookingForm({super.key});
-
-  @override
-  State<StatefulWidget> createState() => ActivityBookingFormState();
-}
-
-class ActivityBookingFormState extends State<ActivityBookingForm> {
-  @override
-  Widget build(BuildContext context) {
-    return Form(
-      child: Column(
-        children: [
-          const Text("Activiy Booking"),
-          DropdownButtonFormField(
-            items: [],
-            onChanged: (x) {},
-          ),
-        ],
+                ),
+              );
+            }
+          },
+        ),
       ),
     );
   }
