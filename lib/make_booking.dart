@@ -18,6 +18,14 @@ class MakeBookingState extends State<MakeBooking> {
   /// The number of slots remaining for each slot in each activity
   final List<List<int>> remaining = [];
 
+  void resetState() {
+    hasFetched = false;
+    bookings.clear();
+    activities.clear();
+    slots.clear();
+    remaining.clear();
+  }
+
   Future<void> getBookings() async {
     bookings.addEntries([
       for (final b in await DB.getBookings())
@@ -105,10 +113,10 @@ class MakeBookingState extends State<MakeBooking> {
                           .update({'remaining': remaining[i]});
 
                       if (mounted) {
-                        Navigator.of(context)
-                          ..pop()
-                          ..push(MaterialPageRoute(
-                              builder: (_) => const MakeBooking()));
+                        Navigator.of(context).pop();
+                        setState(() {
+                          resetState();
+                        });
                       }
                     },
                     child: Text(oldSlot == null ? "Book" : "Update"),
@@ -128,10 +136,10 @@ class MakeBookingState extends State<MakeBooking> {
                             .update({'remaining': remaining[i]});
 
                         if (mounted) {
-                          Navigator.of(context)
-                            ..pop()
-                            ..push(MaterialPageRoute(
-                                builder: (_) => const MakeBooking()));
+                          Navigator.of(context).pop();
+                          setState(() {
+                            resetState();
+                          });
                         }
                       },
                       child: const Text("Remove booking"),
