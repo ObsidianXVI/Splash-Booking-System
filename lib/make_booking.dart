@@ -127,7 +127,7 @@ class MakeBookingState extends State<MakeBooking> {
                         remaining[i][chosenSlot] += 1;
                         await db
                             .collection('bookings')
-                            .doc(activities[i].id)
+                            .doc(bookings[activities[i].id]!.id)
                             .delete();
 
                         await db
