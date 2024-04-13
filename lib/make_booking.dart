@@ -89,6 +89,7 @@ class MakeBookingState extends State<MakeBooking> {
               Row(
                 children: [
                   TextButton(
+                    style: splashButtonStyle(),
                     onPressed: () async {
                       if (oldSlot == null) {
                         remaining[i][chosenSlot] -= 1;
@@ -123,6 +124,7 @@ class MakeBookingState extends State<MakeBooking> {
                   ),
                   if (oldSlot != null)
                     TextButton(
+                      style: splashButtonStyle(),
                       onPressed: () async {
                         remaining[i][chosenSlot] += 1;
                         await db
@@ -145,6 +147,7 @@ class MakeBookingState extends State<MakeBooking> {
                       child: const Text("Remove booking"),
                     ),
                   TextButton(
+                    style: splashButtonStyle(),
                     onPressed: () => Navigator.of(context).pop(),
                     child: const Text("Cancel"),
                   ),
@@ -166,15 +169,19 @@ class MakeBookingState extends State<MakeBooking> {
           future: getActivities(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return Center(
-                child: Container(
+              return const Center(
+                child: SizedBox(
                   width: 100,
                   height: 100,
-                  child: const CircularProgressIndicator(),
+                  child: CircularProgressIndicator(color: red),
                 ),
               );
             } else {
-              if (activities.isEmpty) return const Text("No activities!");
+              if (activities.isEmpty) {
+                return const Center(
+                  child: Text("No activities!"),
+                );
+              }
               return Center(
                 child: SizedBox(
                   width: 600,
@@ -219,11 +226,13 @@ class MakeBookingState extends State<MakeBooking> {
                                 children: [
                                   if (!hasBeenBooked)
                                     TextButton(
+                                      style: splashButtonStyle(),
                                       onPressed: () => bookingDialog(i),
                                       child: const Text("Book This"),
                                     ),
                                   if (hasBeenBooked)
                                     TextButton(
+                                      style: splashButtonStyle(),
                                       onPressed: () async {
                                         final b = (await db
                                                 .collection('bookings')

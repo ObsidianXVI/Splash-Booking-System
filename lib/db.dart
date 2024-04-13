@@ -16,4 +16,9 @@ class DB {
       for (final x in await getBookings()) x.data()['activityId'] as String
     ];
   }
+
+  static Future<List<QueryDocumentSnapshot<JSON>>> getTeams() async {
+    return (await db.collection('teams').where('main', isEqualTo: userId).get())
+        .docs;
+  }
 }
