@@ -116,75 +116,89 @@ class ManageTeamState extends State<ManageTeam> {
   @override
   Widget build(BuildContext context) {
     return Material(
-      child: Padding(
-        padding: const EdgeInsets.only(top: 20),
-        child: FutureBuilder(
-          future: getTeams(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return Column(
-                children: [
-                  const Text(
-                      "View and manage the teams that you are a leader of."),
-                  const SizedBox(height: 20),
-                  Center(
-                    child: Container(
-                      width: 100,
-                      height: 100,
-                      child: const CircularProgressIndicator(),
-                    ),
-                  ),
-                ],
-              );
-            } else {
-              if (teams.isEmpty) {
-                return const Center(
-                  child: Text("No teams!"),
-                );
-              }
-              return Center(
-                child: SizedBox(
-                  width: 600,
-                  child: ListView.separated(
-                    itemBuilder: (ctx, i) {
-                      bool hasBooking = bookings[i] != null;
-                      return Center(
-                        child: Container(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
+        alignment: Alignment.topCenter,
+        children: [
+          Positioned(
+            top: 100,
+            child: Image.asset(
+              'images/acsplash_white.png',
+              width: MediaQuery.of(context).size.width * 0.7,
+              opacity: const AlwaysStoppedAnimation(0.2),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: 50),
+            child: FutureBuilder(
+              future: getTeams(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Column(
+                    children: [
+                      Text(
+                          "View and manage the teams that you are a leader of."),
+                      SizedBox(height: 20),
+                      Center(
+                        child: SizedBox(
+                          width: 100,
+                          height: 100,
+                          child: CircularProgressIndicator(),
+                        ),
+                      ),
+                    ],
+                  );
+                } else {
+                  if (teams.isEmpty) {
+                    return const Center(
+                      child: Text("No teams!"),
+                    );
+                  }
+                  return Center(
+                    child: SizedBox(
+                      width: 600,
+                      child: ListView.separated(
+                        itemBuilder: (ctx, i) {
+                          bool hasBooking = bookings[i] != null;
+                          return Center(
+                            child: Container(
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  if (hasBooking)
-                                    Text(
-                                      "Activity: ${activityNames[bookings[i]!.id]}",
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  Text(
-                                      "Members: ${teams[i].data()!['members'].join(', ')}"),
+                                  Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      if (hasBooking)
+                                        Text(
+                                          "Activity: ${activityNames[bookings[i]!.id]}",
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      Text(
+                                          "Members: ${teams[i].data()!['members'].join(', ')}"),
+                                    ],
+                                  ),
+                                  TextButton(
+                                    style: splashButtonStyle(),
+                                    onPressed: () => editTeamDialog(i),
+                                    child: const Text("Edit Team"),
+                                  ),
                                 ],
                               ),
-                              TextButton(
-                                style: splashButtonStyle(),
-                                onPressed: () => editTeamDialog(i),
-                                child: const Text("Edit Team"),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                    separatorBuilder: (_, __) => const SizedBox(height: 20),
-                    itemCount: teams.length,
-                  ),
-                ),
-              );
-            }
-          },
-        ),
+                            ),
+                          );
+                        },
+                        separatorBuilder: (_, __) => const SizedBox(height: 20),
+                        itemCount: teams.length,
+                      ),
+                    ),
+                  );
+                }
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

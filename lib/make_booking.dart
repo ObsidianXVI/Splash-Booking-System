@@ -163,105 +163,120 @@ class MakeBookingState extends State<MakeBooking> {
   @override
   Widget build(BuildContext context) {
     return Material(
-      child: Padding(
-        padding: const EdgeInsets.only(top: 20),
-        child: FutureBuilder(
-          future: getActivities(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(
-                child: SizedBox(
-                  width: 100,
-                  height: 100,
-                  child: CircularProgressIndicator(color: red),
-                ),
-              );
-            } else {
-              if (activities.isEmpty) {
-                return const Center(
-                  child: Text("No activities!"),
-                );
-              }
-              return Center(
-                child: SizedBox(
-                  width: 600,
-                  child: ListView.separated(
-                    itemBuilder: (ctx, i) {
-                      final String actId = activities[i].id;
-                      final bool hasBeenBooked = bookings.containsKey(actId);
-                      final List<Widget> buttonContent = [
-                        if (hasBeenBooked)
-                          Text(
-                              "Booked for ${slots[i][bookings[actId]!.data()!['slot']]}"),
-                        if (!hasBeenBooked)
-                          ...List<Text>.generate(slots[i].length, (int sl) {
-                            return Text(
-                              "${slots[i][sl]}: ${remaining[i][sl]} slots left",
-                              textAlign: TextAlign.right,
-                            );
-                          })
-                      ];
-                      return Center(
-                        child: Container(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
+      child: Stack(
+        alignment: Alignment.topCenter,
+        children: [
+          Positioned(
+            top: 100,
+            child: Image.asset(
+              'images/acsplash_white.png',
+              width: MediaQuery.of(context).size.width * 0.7,
+              opacity: const AlwaysStoppedAnimation(0.2),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: 50),
+            child: FutureBuilder(
+              future: getActivities(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: SizedBox(
+                      width: 100,
+                      height: 100,
+                      child: CircularProgressIndicator(color: red),
+                    ),
+                  );
+                } else {
+                  if (activities.isEmpty) {
+                    return const Center(
+                      child: Text("No activities!"),
+                    );
+                  }
+                  return Center(
+                    child: SizedBox(
+                      width: 600,
+                      child: ListView.separated(
+                        itemBuilder: (ctx, i) {
+                          final String actId = activities[i].id;
+                          final bool hasBeenBooked =
+                              bookings.containsKey(actId);
+                          final List<Widget> buttonContent = [
+                            if (hasBeenBooked)
+                              Text(
+                                  "Booked for ${slots[i][bookings[actId]!.data()!['slot']]}"),
+                            if (!hasBeenBooked)
+                              ...List<Text>.generate(slots[i].length, (int sl) {
+                                return Text(
+                                  "${slots[i][sl]}: ${remaining[i][sl]} slots left",
+                                  textAlign: TextAlign.right,
+                                );
+                              })
+                          ];
+                          return Center(
+                            child: Container(
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Text(
-                                    "${activities[i].data()!['name']}",
-                                    textAlign: TextAlign.right,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Text(
+                                        "${activities[i].data()!['name']}",
+                                        textAlign: TextAlign.right,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      ...buttonContent
+                                      // ${slots[i][bookings[activities[i].id]!.data()!['slot']]}
+                                      ,
+                                    ],
                                   ),
-                                  ...buttonContent
-                                  // ${slots[i][bookings[activities[i].id]!.data()!['slot']]}
-                                  ,
+                                  const SizedBox(width: 5),
+                                  Column(
+                                    children: [
+                                      if (!hasBeenBooked)
+                                        TextButton(
+                                          style: splashButtonStyle(),
+                                          onPressed: () => bookingDialog(i),
+                                          child: const Text("Book This"),
+                                        ),
+                                      if (hasBeenBooked)
+                                        TextButton(
+                                          style: splashButtonStyle(),
+                                          onPressed: () async {
+                                            final b = (await db
+                                                    .collection('bookings')
+                                                    .where('userId',
+                                                        isEqualTo: userId)
+                                                    .where('activityId',
+                                                        isEqualTo:
+                                                            activities[i].id)
+                                                    .get())
+                                                .docs
+                                                .first;
+                                            bookingDialog(i, b.data()['slot']);
+                                          },
+                                          child: const Text("Edit booking"),
+                                        ),
+                                    ],
+                                  ),
                                 ],
                               ),
-                              const SizedBox(width: 5),
-                              Column(
-                                children: [
-                                  if (!hasBeenBooked)
-                                    TextButton(
-                                      style: splashButtonStyle(),
-                                      onPressed: () => bookingDialog(i),
-                                      child: const Text("Book This"),
-                                    ),
-                                  if (hasBeenBooked)
-                                    TextButton(
-                                      style: splashButtonStyle(),
-                                      onPressed: () async {
-                                        final b = (await db
-                                                .collection('bookings')
-                                                .where('userId',
-                                                    isEqualTo: userId)
-                                                .where('activityId',
-                                                    isEqualTo: activities[i].id)
-                                                .get())
-                                            .docs
-                                            .first;
-                                        bookingDialog(i, b.data()['slot']);
-                                      },
-                                      child: const Text("Edit booking"),
-                                    ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                    separatorBuilder: (_, __) => const SizedBox(height: 20),
-                    itemCount: activities.length,
-                  ),
-                ),
-              );
-            }
-          },
-        ),
+                            ),
+                          );
+                        },
+                        separatorBuilder: (_, __) => const SizedBox(height: 20),
+                        itemCount: activities.length,
+                      ),
+                    ),
+                  );
+                }
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

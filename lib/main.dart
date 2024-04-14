@@ -81,6 +81,8 @@ class LoginPageState extends State<LoginPage> {
       length: 3,
       child: Scaffold(
         appBar: AppBar(
+          elevation: 14,
+          shadowColor: Colors.black,
           title: const Text("ACSplash Booking System"),
           bottom: TabBar(
             unselectedLabelColor: red.withOpacity(0.6),
@@ -105,53 +107,60 @@ class LoginPageState extends State<LoginPage> {
         ),
         body: TabBarView(
           children: [
-            Column(
+            Stack(
+              alignment: Alignment.topCenter,
               children: [
-                const SizedBox(height: 50),
-                const Text(
-                    "Please enter using the first part of your Teams ID, so if your Teams account is 'hugh.jass@acsians.acsi.edu.sg', type 'hugh.jass'."),
-                const SizedBox(height: 40),
-                SizedBox(
-                  width: 400,
-                  child: TextField(
-                    cursorColor: yellow,
-                    autofocus: true,
-                    controller: controller,
-                    decoration: InputDecoration(
-                      enabledBorder: UnderlineInputBorder(
-                        borderSide: BorderSide(
-                          color: yellow.withOpacity(0.3),
-                        ),
-                      ),
-                      focusedBorder: const UnderlineInputBorder(
-                        borderSide: BorderSide(
-                          color: yellow,
-                        ),
-                      ),
-                    ),
-                    onSubmitted: (String teamsId) {
-                      setState(() {
-                        enabled = true;
-                        userId = teamsId.trim().toLowerCase();
-                        showBottomHint = true;
-                      });
-                    },
+                Positioned(
+                  top: 100,
+                  child: Image.asset(
+                    'images/acsplash_white.png',
+                    width: MediaQuery.of(context).size.width * 0.7,
+                    opacity: const AlwaysStoppedAnimation(0.2),
                   ),
                 ),
-                const SizedBox(height: 30),
-                if (showBottomHint)
-                  const Text(
-                      "Now use the tabs above to create/view/edit bookings, and to choose team members to register with."),
+                Column(
+                  children: [
+                    const SizedBox(height: 50),
+                    const Text(
+                        "Please enter using the first part of your Teams ID, so if your Teams account is 'hugh.jass@acsians.acsi.edu.sg', type 'hugh.jass'."),
+                    const SizedBox(height: 40),
+                    SizedBox(
+                      width: 400,
+                      child: TextField(
+                        cursorColor: yellow,
+                        autofocus: true,
+                        controller: controller,
+                        decoration: InputDecoration(
+                          enabledBorder: UnderlineInputBorder(
+                            borderSide: BorderSide(
+                              color: yellow.withOpacity(0.3),
+                            ),
+                          ),
+                          focusedBorder: const UnderlineInputBorder(
+                            borderSide: BorderSide(
+                              color: yellow,
+                            ),
+                          ),
+                        ),
+                        onSubmitted: (String teamsId) {
+                          setState(() {
+                            enabled = true;
+                            userId = teamsId.trim().toLowerCase();
+                            showBottomHint = true;
+                          });
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 30),
+                    if (showBottomHint)
+                      const Text(
+                          "Now use the tabs above to create/view/edit bookings, and to choose team members to register with."),
+                  ],
+                ),
               ],
             ),
-            const Padding(
-              padding: EdgeInsets.only(top: 50),
-              child: MakeBooking(),
-            ),
-            const Padding(
-              padding: EdgeInsets.only(top: 50),
-              child: ManageTeam(),
-            ),
+            const MakeBooking(),
+            const ManageTeam(),
           ],
         ),
       ),
