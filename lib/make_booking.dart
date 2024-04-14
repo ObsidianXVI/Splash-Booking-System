@@ -81,7 +81,6 @@ class MakeBookingState extends State<MakeBooking> {
           instance: this,
           possibleTeams: t,
           teamSize: tsize,
-          returnValue: (_) {},
         ),
       );
     }
@@ -212,7 +211,7 @@ class MakeBookingState extends State<MakeBooking> {
   }
 }
 
-class ManageBookingModal extends ModalView<void> {
+class ManageBookingModal extends ModalView {
   final int? oldSlot;
   final int i;
   final List<DocumentSnapshot<JSON>> possibleTeams;
@@ -227,7 +226,6 @@ class ManageBookingModal extends ModalView<void> {
     required this.instance,
     required this.possibleTeams,
     required this.teamSize,
-    required super.returnValue,
     super.key,
   }) : super(title: 'Manage Booking');
 

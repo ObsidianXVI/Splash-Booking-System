@@ -3,13 +3,11 @@ part of splash;
 typedef RefreshFn = void Function();
 typedef DismissFn = void Function();
 
-abstract class ModalView<T> extends StatefulWidget {
+abstract class ModalView extends StatefulWidget {
   final String title;
-  final void Function(T) returnValue;
 
   const ModalView({
     required this.title,
-    required this.returnValue,
     super.key,
   });
 

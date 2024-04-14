@@ -15,12 +15,13 @@ class ManageTeamState extends State<ManageTeam> {
   final List<DocumentSnapshot<Map<String, dynamic>>?> bookings = [];
   final List<DocumentSnapshot<Map<String, dynamic>>> teams = [];
 
-  void resetState() {
+  Future<void> resetState() async {
     hasFetched = false;
     teams.clear();
     bookings.clear();
     activityNames.clear();
     modifiedTeam.clear();
+    await getTeams();
   }
 
   Future<void> getTeams() async {
@@ -56,12 +57,10 @@ class ManageTeamState extends State<ManageTeam> {
         bookings: bookings,
         teams: teams,
         editingTeamIndex: i,
-        returnValue: (newList) {},
       ),
     );
-    setState(() {
-      resetState();
-    });
+    await resetState();
+    setState(() {});
   }
 
   @override
@@ -105,46 +104,74 @@ class ManageTeamState extends State<ManageTeam> {
                     );
                   }
                   return Center(
-                    child: SizedBox(
-                      width: 600,
-                      child: ListView.separated(
-                        itemBuilder: (ctx, i) {
-                          bool hasBooking = bookings[i] != null;
-                          return Center(
-                            child: Container(
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      if (hasBooking)
-                                        Text(
-                                          "Activity: ${activityNames[bookings[i]!.id]}",
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
+                      child: Column(
+                    children: [
+                      SizedBox(
+                        width: 600,
+                        height: 500,
+                        child: ListView.separated(
+                          itemBuilder: (ctx, i) {
+                            bool hasBooking = bookings[i] != null;
+                            return Center(
+                              child: Container(
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        if (hasBooking)
+                                          Text(
+                                            "Activity: ${activityNames[bookings[i]!.id]}",
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                            ),
                                           ),
-                                        ),
-                                      Text(
-                                          "Members: ${(teams[i].data()!['members']).join(', ')}"),
-                                    ],
-                                  ),
-                                  TextButton(
-                                    style: splashButtonStyle(),
-                                    onPressed: () => editTeamDialog(i),
-                                    child: const Text("Edit Team"),
-                                  ),
-                                ],
+                                        Text(
+                                            "Members: ${(teams[i].data()!['members']).join(', ')}"),
+                                      ],
+                                    ),
+                                    TextButton(
+                                      style: splashButtonStyle(),
+                                      onPressed: () => editTeamDialog(i),
+                                      child: const Text("Edit Team"),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                          );
-                        },
-                        separatorBuilder: (_, __) => const SizedBox(height: 20),
-                        itemCount: teams.length,
+                            );
+                          },
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 20),
+                          itemCount: teams.length,
+                        ),
                       ),
-                    ),
-                  );
+                      TextButton(
+                        style: splashButtonStyle(),
+                        onPressed: () async {
+                          final ref = await db.collection('teams').add({
+                            'main': userId,
+                            'members': [userId],
+                          });
+                          bookings.add(null);
+                          teams.add(await ref.get());
+                          modifiedTeam.add(null);
+                          if (mounted) {
+                            await showDialog(
+                              context: context,
+                              builder: (_) => EditTeamMembersModal(
+                                bookings: bookings,
+                                teams: teams,
+                                editingTeamIndex: teams.length - 1,
+                              ),
+                            );
+                          }
+                        },
+                        child: const Text('New Team'),
+                      ),
+                    ],
+                  ));
                 }
               },
             ),
@@ -155,7 +182,7 @@ class ManageTeamState extends State<ManageTeam> {
   }
 }
 
-class EditTeamMembersModal extends ModalView<List<String>> {
+class EditTeamMembersModal extends ModalView {
   final int editingTeamIndex;
   final List<DocumentSnapshot<Map<String, dynamic>>?> bookings;
   final List<DocumentSnapshot<Map<String, dynamic>>> teams;
@@ -164,7 +191,6 @@ class EditTeamMembersModal extends ModalView<List<String>> {
     required this.bookings,
     required this.teams,
     required this.editingTeamIndex,
-    required super.returnValue,
     super.key,
   }) : super(title: 'Edit Team Members');
 
@@ -190,7 +216,7 @@ class EditTeamMembersModalState extends ModalViewState<EditTeamMembersModal> {
     for (int j = 0; j < newMembers.length; j++) {
       options.addAll([
         Text(
-          "Member ${j + 1}",
+          j == 0 ? "Member 1 (You, the team leader)" : "Member ${j + 1}",
           style: const TextStyle(
             fontStyle: FontStyle.italic,
           ),
@@ -201,6 +227,7 @@ class EditTeamMembersModalState extends ModalViewState<EditTeamMembersModal> {
             TextField(
               controller: TextEditingController(text: newMembers[j]),
               cursorColor: yellow,
+              enabled: j != 0,
               decoration: InputDecoration(
                 enabledBorder: UnderlineInputBorder(
                   borderSide: BorderSide(
@@ -219,14 +246,15 @@ class EditTeamMembersModalState extends ModalViewState<EditTeamMembersModal> {
                 });
               },
             ),
-            IconButton(
-              onPressed: () {
-                setState(() {
-                  newMembers.removeAt(j);
-                });
-              },
-              icon: const Icon(Icons.delete),
-            ),
+            if (j != 0)
+              IconButton(
+                onPressed: () {
+                  setState(() {
+                    newMembers.removeAt(j);
+                  });
+                },
+                icon: const Icon(Icons.delete),
+              ),
           ],
         ),
         const SizedBox(height: 20),
