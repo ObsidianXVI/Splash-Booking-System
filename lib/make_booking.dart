@@ -58,106 +58,18 @@ class MakeBookingState extends State<MakeBooking> {
   }
 
   Future<void> bookingDialog(int i, [int? oldSlot]) async {
-    final List<DropdownMenuItem<int>> items = [];
-    int chosenSlot = oldSlot ?? 0;
-    for (int j = 0; j < slots[i].length; j++) {
-      items.add(
-        DropdownMenuItem<int>(
-          value: j,
-          enabled: remaining[i][j] > 0,
-          child: Text(slots[i][j]),
-        ),
-      );
-    }
     await showDialog(
       context: context,
-      builder: (c) => Material(
-        child: Form(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(oldSlot == null ? "Book Activity" : "Update Booking"),
-              const SizedBox(height: 50),
-              const Text("Select a slot:"),
-              const SizedBox(height: 10),
-              DropdownButtonFormField(
-                value: chosenSlot,
-                items: items,
-                onChanged: (x) => chosenSlot = x ?? chosenSlot,
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  TextButton(
-                    style: splashButtonStyle(),
-                    onPressed: () async {
-                      if (oldSlot == null) {
-                        remaining[i][chosenSlot] -= 1;
-
-                        await db.collection('bookings').add({
-                          'userId': userId,
-                          'activityId': activities[i].id,
-                          'slot': chosenSlot,
-                        });
-                      } else {
-                        remaining[i][chosenSlot] -= 1;
-                        remaining[i][oldSlot] += 1;
-                        final ob = await oldBookingId(i);
-                        await db
-                            .collection('bookings')
-                            .doc(ob)
-                            .update({'slot': chosenSlot});
-                      }
-                      await db
-                          .collection('activities')
-                          .doc(activities[i].id)
-                          .update({'remaining': remaining[i]});
-
-                      if (mounted) {
-                        Navigator.of(context).pop();
-                        setState(() {
-                          resetState();
-                        });
-                      }
-                    },
-                    child: Text(oldSlot == null ? "Book" : "Update"),
-                  ),
-                  if (oldSlot != null)
-                    TextButton(
-                      style: splashButtonStyle(),
-                      onPressed: () async {
-                        remaining[i][chosenSlot] += 1;
-                        await db
-                            .collection('bookings')
-                            .doc(bookings[activities[i].id]!.id)
-                            .delete();
-
-                        await db
-                            .collection('activities')
-                            .doc(activities[i].id)
-                            .update({'remaining': remaining[i]});
-
-                        if (mounted) {
-                          Navigator.of(context).pop();
-                          setState(() {
-                            resetState();
-                          });
-                        }
-                      },
-                      child: const Text("Remove booking"),
-                    ),
-                  TextButton(
-                    style: splashButtonStyle(),
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text("Cancel"),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
+      builder: (_) => ManageBookingModal(
+        i: i,
+        oldSlot: oldSlot,
+        instance: this,
+        returnValue: (_) {},
       ),
     );
+    setState(() {
+      resetState();
+    });
   }
 
   @override
@@ -277,6 +189,129 @@ class MakeBookingState extends State<MakeBooking> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class ManageBookingModal extends ModalView<void> {
+  final int? oldSlot;
+  final int i;
+  final MakeBookingState instance;
+
+  const ManageBookingModal({
+    required this.i,
+    required this.oldSlot,
+    required this.instance,
+    required super.returnValue,
+    super.key,
+  }) : super(title: 'Manage Booking');
+
+  @override
+  ModalViewState createState() => ManageBookingModalState();
+}
+
+class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
+  final List<DropdownMenuItem<int>> items = [];
+  late int chosenSlot;
+
+  @override
+  void initState() {
+    chosenSlot = widget.oldSlot ?? 0;
+    for (int j = 0; j < widget.instance.slots[widget.i].length; j++) {
+      items.add(
+        DropdownMenuItem<int>(
+          value: j,
+          enabled: widget.instance.remaining[widget.i][j] > 0,
+          child: Text(widget.instance.slots[widget.i][j]),
+        ),
+      );
+    }
+
+    super.initState();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return modalScaffold(
+      child: Form(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text("Select a slot:"),
+            const SizedBox(height: 10),
+            DropdownButtonFormField(
+              value: chosenSlot,
+              items: items,
+              onChanged: (x) => chosenSlot = x ?? chosenSlot,
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                TextButton(
+                  style: splashButtonStyle(),
+                  onPressed: () async {
+                    if (widget.oldSlot == null) {
+                      widget.instance.remaining[widget.i][chosenSlot] -= 1;
+
+                      await db.collection('bookings').add({
+                        'userId': userId,
+                        'activityId': widget.instance.activities[widget.i].id,
+                        'slot': chosenSlot,
+                      });
+                    } else {
+                      widget.instance.remaining[widget.i][chosenSlot] -= 1;
+                      widget.instance.remaining[widget.i][widget.oldSlot!] += 1;
+                      final ob = await widget.instance.oldBookingId(widget.i);
+                      await db
+                          .collection('bookings')
+                          .doc(ob)
+                          .update({'slot': chosenSlot});
+                    }
+                    await db
+                        .collection('activities')
+                        .doc(widget.instance.activities[widget.i].id)
+                        .update(
+                            {'remaining': widget.instance.remaining[widget.i]});
+
+                    dismiss(context);
+                  },
+                  child: Text(widget.oldSlot == null ? "Book" : "Update"),
+                ),
+                if (widget.oldSlot != null)
+                  TextButton(
+                    style: splashButtonStyle(),
+                    onPressed: () async {
+                      widget.instance.remaining[widget.i][chosenSlot] += 1;
+                      await db
+                          .collection('bookings')
+                          .doc(widget
+                              .instance
+                              .bookings[
+                                  widget.instance.activities[widget.i].id]!
+                              .id)
+                          .delete();
+
+                      await db
+                          .collection('activities')
+                          .doc(widget.instance.activities[widget.i].id)
+                          .update({
+                        'remaining': widget.instance.remaining[widget.i]
+                      });
+
+                      dismiss(context);
+                    },
+                    child: const Text("Remove booking"),
+                  ),
+                TextButton(
+                  style: splashButtonStyle(),
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text("Cancel"),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
