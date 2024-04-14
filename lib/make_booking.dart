@@ -33,6 +33,17 @@ class MakeBookingState extends State<MakeBooking> {
     ]);
   }
 
+  Future<List<DocumentSnapshot<JSON>>> getTeams(int minMemberCount) async {
+    final List<DocumentSnapshot<JSON>> possibleTeams = [];
+    final teams = await DB.getTeams();
+    for (int i = 0; i < teams.length; i++) {
+      if ((teams[i].data()['members'] as List).length == minMemberCount) {
+        possibleTeams.add(teams[i]);
+      }
+    }
+    return possibleTeams;
+  }
+
   Future<void> getActivities() async {
     if (hasFetched) return;
     await getBookings();
@@ -57,16 +68,23 @@ class MakeBookingState extends State<MakeBooking> {
     return x;
   }
 
-  Future<void> bookingDialog(int i, [int? oldSlot]) async {
-    await showDialog(
-      context: context,
-      builder: (_) => ManageBookingModal(
-        i: i,
-        oldSlot: oldSlot,
-        instance: this,
-        returnValue: (_) {},
-      ),
-    );
+  Future<void> bookingDialog(int i, [int? oldSlot, String? oldTeamId]) async {
+    final tsize = activities[i].data()!['teamSize'];
+    final t = await getTeams(tsize);
+    if (mounted) {
+      await showDialog(
+        context: context,
+        builder: (_) => ManageBookingModal(
+          i: i,
+          oldSlot: oldSlot,
+          oldTeamId: oldTeamId,
+          instance: this,
+          possibleTeams: t,
+          teamSize: tsize,
+          returnValue: (_) {},
+        ),
+      );
+    }
     setState(() {
       resetState();
     });
@@ -197,12 +215,18 @@ class MakeBookingState extends State<MakeBooking> {
 class ManageBookingModal extends ModalView<void> {
   final int? oldSlot;
   final int i;
+  final List<DocumentSnapshot<JSON>> possibleTeams;
   final MakeBookingState instance;
+  final int teamSize;
+  final String? oldTeamId;
 
   const ManageBookingModal({
     required this.i,
     required this.oldSlot,
+    required this.oldTeamId,
     required this.instance,
+    required this.possibleTeams,
+    required this.teamSize,
     required super.returnValue,
     super.key,
   }) : super(title: 'Manage Booking');
@@ -213,7 +237,9 @@ class ManageBookingModal extends ModalView<void> {
 
 class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
   final List<DropdownMenuItem<int>> items = [];
+  final List<DropdownMenuItem<String>> teamItems = [];
   late int chosenSlot;
+  String? chosenTeam;
 
   @override
   void initState() {
@@ -224,6 +250,20 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
           value: j,
           enabled: widget.instance.remaining[widget.i][j] > 0,
           child: Text(widget.instance.slots[widget.i][j]),
+        ),
+      );
+    }
+    if (widget.possibleTeams.isNotEmpty) {
+      chosenTeam = widget.oldTeamId ?? widget.possibleTeams.first.id;
+    }
+
+    for (int k = 0; k < widget.possibleTeams.length; k++) {
+      teamItems.add(
+        DropdownMenuItem<String>(
+          value: widget.possibleTeams[k].id,
+          child: Text(
+            (widget.possibleTeams[k].data()!['members'] as List).join(', '),
+          ),
         ),
       );
     }
@@ -246,36 +286,57 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
               onChanged: (x) => chosenSlot = x ?? chosenSlot,
             ),
             const SizedBox(height: 20),
+            const Text("Select a team:"),
+            const SizedBox(height: 10),
+            if (widget.possibleTeams.isEmpty)
+              Text(
+                  "You do not currently have teams with exactly ${widget.teamSize} members. Create one using the Manage Teams tab, and then try booking this activity."),
+            if (widget.possibleTeams.isNotEmpty)
+              DropdownButtonFormField<String>(
+                value: teamItems.first.value,
+                items: teamItems,
+                onChanged: (x) => chosenTeam = x ?? chosenTeam,
+              ),
+            const SizedBox(height: 20),
             Row(
               children: [
                 TextButton(
                   style: splashButtonStyle(),
-                  onPressed: () async {
-                    if (widget.oldSlot == null) {
-                      widget.instance.remaining[widget.i][chosenSlot] -= 1;
+                  onPressed: chosenTeam != null
+                      ? () async {
+                          if (widget.oldSlot == null) {
+                            widget.instance.remaining[widget.i][chosenSlot] -=
+                                1;
 
-                      await db.collection('bookings').add({
-                        'userId': userId,
-                        'activityId': widget.instance.activities[widget.i].id,
-                        'slot': chosenSlot,
-                      });
-                    } else {
-                      widget.instance.remaining[widget.i][chosenSlot] -= 1;
-                      widget.instance.remaining[widget.i][widget.oldSlot!] += 1;
-                      final ob = await widget.instance.oldBookingId(widget.i);
-                      await db
-                          .collection('bookings')
-                          .doc(ob)
-                          .update({'slot': chosenSlot});
-                    }
-                    await db
-                        .collection('activities')
-                        .doc(widget.instance.activities[widget.i].id)
-                        .update(
-                            {'remaining': widget.instance.remaining[widget.i]});
+                            await db.collection('bookings').add({
+                              'userId': userId,
+                              'activityId':
+                                  widget.instance.activities[widget.i].id,
+                              'slot': chosenSlot,
+                              'teamId': chosenTeam,
+                            });
+                          } else {
+                            widget.instance.remaining[widget.i][chosenSlot] -=
+                                1;
+                            widget.instance.remaining[widget.i]
+                                [widget.oldSlot!] += 1;
+                            final ob =
+                                await widget.instance.oldBookingId(widget.i);
+                            await db.collection('bookings').doc(ob).update({
+                              'slot': chosenSlot,
+                              'teamId': chosenTeam,
+                            });
+                          }
+                          await db
+                              .collection('activities')
+                              .doc(widget.instance.activities[widget.i].id)
+                              .update({
+                            'remaining': widget.instance.remaining[widget.i]
+                          });
 
-                    dismiss(context);
-                  },
+                          dismiss(context);
+                        }
+                      : null,
                   child: Text(widget.oldSlot == null ? "Book" : "Update"),
                 ),
                 if (widget.oldSlot != null)

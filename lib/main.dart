@@ -21,12 +21,6 @@ final db = FirebaseFirestore.instance
     8082,
   );
 
-/**
- * TODO:
- * - Booking.delete feature for bookings
- * - sign up in teams feature
- * - UI
- */
 late String userId;
 
 void main() async {
