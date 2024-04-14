@@ -7,6 +7,7 @@ import 'package:splash_booking/firebase_configs.dart';
 
 part './make_booking.dart';
 part './manage_team.dart';
+part './modal_view.dart';
 part './styles.dart';
 part './db.dart';
 

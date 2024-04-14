@@ -10,6 +10,7 @@ class ManageTeam extends StatefulWidget {
 class ManageTeamState extends State<ManageTeam> {
   bool hasFetched = false;
 
+  final List<List<String>?> modifiedTeam = [];
   final Map<String, String> activityNames = {};
   final List<DocumentSnapshot<Map<String, dynamic>>?> bookings = [];
   final List<DocumentSnapshot<Map<String, dynamic>>> teams = [];
@@ -19,6 +20,7 @@ class ManageTeamState extends State<ManageTeam> {
     teams.clear();
     bookings.clear();
     activityNames.clear();
+    modifiedTeam.clear();
   }
 
   Future<void> getTeams() async {
@@ -33,6 +35,7 @@ class ManageTeamState extends State<ManageTeam> {
           .data()!['name']);
     }
     for (final te in await DB.getTeams()) {
+      modifiedTeam.add(null);
       teams.add(te);
       for (final bk in bookingData) {
         if (te.id == bk.data()['teamId']) {
@@ -46,71 +49,19 @@ class ManageTeamState extends State<ManageTeam> {
     hasFetched = true;
   }
 
-  bool allMembersAreUnique(List<String> members) {
-    for (int i = 0; i < members.length; i++) {
-      for (int j = 0; j < members.length; j++) {
-        if (i == j) continue;
-        if (members[i] == members[j]) return false;
-      }
-    }
-    return true;
-  }
-
   Future<void> editTeamDialog(int i) async {
-    final List<Widget> options = [];
-    final List<String> members = (teams[i]['members'] as List).cast<String>();
-    final List<String> newMembers = [];
-    for (int j = 0; j < members.length; j++) {
-      options.addAll([
-        Text("Member $j"),
-        const SizedBox(height: 5),
-        TextField(
-          controller: TextEditingController(text: members[j]),
-          onSubmitted: (value) {
-            newMembers[j] = value;
-          },
-        ),
-      ]);
-    }
-
     await showDialog(
       context: context,
-      builder: (c) => Material(
-        child: Form(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text("Edit Members"),
-              const SizedBox(height: 50),
-              ...options,
-              Row(
-                children: [
-                  TextButton(
-                    style: splashButtonStyle(),
-                    onPressed: allMembersAreUnique(newMembers)
-                        ? () async {
-                            db.collection('teams').doc(teams[i].id).update({
-                              'members': newMembers,
-                            });
-                            setState(() {
-                              resetState();
-                            });
-                          }
-                        : null,
-                    child: const Text("Update Team"),
-                  ),
-                  TextButton(
-                    style: splashButtonStyle(),
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text("Cancel"),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
+      builder: (ctx) => EditTeamMembersModal(
+        bookings: bookings,
+        teams: teams,
+        editingTeamIndex: i,
+        returnValue: (newList) {},
       ),
     );
+    setState(() {
+      resetState();
+    });
   }
 
   @override
@@ -176,7 +127,7 @@ class ManageTeamState extends State<ManageTeam> {
                                           ),
                                         ),
                                       Text(
-                                          "Members: ${teams[i].data()!['members'].join(', ')}"),
+                                          "Members: ${(teams[i].data()!['members']).join(', ')}"),
                                     ],
                                   ),
                                   TextButton(
@@ -199,6 +150,160 @@ class ManageTeamState extends State<ManageTeam> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class EditTeamMembersModal extends ModalView<List<String>> {
+  final int editingTeamIndex;
+  final List<DocumentSnapshot<Map<String, dynamic>>?> bookings;
+  final List<DocumentSnapshot<Map<String, dynamic>>> teams;
+
+  const EditTeamMembersModal({
+    required this.bookings,
+    required this.teams,
+    required this.editingTeamIndex,
+    required super.returnValue,
+    super.key,
+  }) : super(title: 'Edit Team Members');
+
+  @override
+  ModalViewState createState() => EditTeamMembersModalState();
+}
+
+class EditTeamMembersModalState extends ModalViewState<EditTeamMembersModal> {
+  late final bool linkedToActivity;
+
+  late final List<String> newMembers;
+
+  @override
+  void initState() {
+    linkedToActivity = widget.bookings[widget.editingTeamIndex] != null;
+    newMembers = (widget.teams[widget.editingTeamIndex]['members'] as List)
+        .cast<String>();
+    super.initState();
+  }
+
+  List<Widget> generateOptions() {
+    final List<Widget> options = [];
+    for (int j = 0; j < newMembers.length; j++) {
+      options.addAll([
+        Text(
+          "Member ${j + 1}",
+          style: const TextStyle(
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+        const SizedBox(height: 5),
+        Wrap(
+          children: [
+            TextField(
+              controller: TextEditingController(text: newMembers[j]),
+              cursorColor: yellow,
+              decoration: InputDecoration(
+                enabledBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(
+                    color: yellow.withOpacity(0.3),
+                  ),
+                ),
+                focusedBorder: const UnderlineInputBorder(
+                  borderSide: BorderSide(
+                    color: yellow,
+                  ),
+                ),
+              ),
+              onSubmitted: (value) {
+                setState(() {
+                  newMembers[j] = value;
+                });
+              },
+            ),
+            IconButton(
+              onPressed: () {
+                setState(() {
+                  newMembers.removeAt(j);
+                });
+              },
+              icon: const Icon(Icons.delete),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+      ]);
+    }
+    return options;
+  }
+
+  bool allMembersAreUnique(List<String> members) {
+    for (int i = 0; i < members.length; i++) {
+      if (members[i].isEmpty) return false;
+      for (int j = 0; j < members.length; j++) {
+        if (i == j) continue;
+        if (members[i] == members[j]) return false;
+      }
+    }
+    return true;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return modalScaffold(
+      child: Form(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ...generateOptions(),
+            TextButton(
+              style: splashButtonStyle(),
+              onPressed: () {
+                setState(() {
+                  newMembers.add('');
+                });
+              },
+              child: const Text("Add Member"),
+            ),
+            const SizedBox(height: 30),
+            Row(
+              children: [
+                TextButton(
+                  style: splashButtonStyle(),
+                  onPressed: () async {
+                    if (allMembersAreUnique(newMembers)) {
+                      await db
+                          .collection('teams')
+                          .doc(widget.teams[widget.editingTeamIndex].id)
+                          .update({
+                        'members': newMembers,
+                      });
+
+                      dismiss(context);
+                    }
+                  },
+                  child: const Text("Update Team"),
+                ),
+                TextButton(
+                  style: splashButtonStyle(),
+                  onPressed: () => dismiss(context),
+                  child: const Text("Cancel"),
+                ),
+              ],
+            ),
+            const SizedBox(height: 30),
+            TextButton(
+              style: splashButtonStyle(),
+              onPressed: () async {
+                await db
+                    .collection('teams')
+                    .doc(widget.teams[widget.editingTeamIndex].id)
+                    .delete();
+
+                dismiss(context);
+              },
+              child: const Text("Delete Team"),
+            ),
+          ],
+        ),
       ),
     );
   }
