@@ -98,55 +98,53 @@ class ManageTeamState extends State<ManageTeam> {
                     ],
                   );
                 } else {
-                  if (teams.isEmpty) {
-                    return const Center(
-                      child: Text("No teams!"),
-                    );
-                  }
                   return Center(
                       child: Column(
                     children: [
-                      SizedBox(
-                        width: 600,
-                        height: 500,
-                        child: ListView.separated(
-                          itemBuilder: (ctx, i) {
-                            bool hasBooking = bookings[i] != null;
-                            return Center(
-                              child: Container(
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        if (hasBooking)
-                                          Text(
-                                            "Activity: ${activityNames[bookings[i]!.id]}",
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                            ),
+                      teams.isEmpty
+                          ? const Text("No teams!")
+                          : SizedBox(
+                              width: 600,
+                              height: 500,
+                              child: ListView.separated(
+                                itemBuilder: (ctx, i) {
+                                  bool hasBooking = bookings[i] != null;
+                                  return Center(
+                                    child: Container(
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              if (hasBooking)
+                                                Text(
+                                                  "Activity: ${activityNames[bookings[i]!.id]}",
+                                                  style: const TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              Text(
+                                                  "Members: ${(teams[i].data()!['members']).join(', ')}"),
+                                            ],
                                           ),
-                                        Text(
-                                            "Members: ${(teams[i].data()!['members']).join(', ')}"),
-                                      ],
+                                          TextButton(
+                                            style: splashButtonStyle(),
+                                            onPressed: () => editTeamDialog(i),
+                                            child: const Text("Edit Team"),
+                                          ),
+                                        ],
+                                      ),
                                     ),
-                                    TextButton(
-                                      style: splashButtonStyle(),
-                                      onPressed: () => editTeamDialog(i),
-                                      child: const Text("Edit Team"),
-                                    ),
-                                  ],
-                                ),
+                                  );
+                                },
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(height: 20),
+                                itemCount: teams.length,
                               ),
-                            );
-                          },
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(height: 20),
-                          itemCount: teams.length,
-                        ),
-                      ),
+                            ),
                       TextButton(
                         style: splashButtonStyle(),
                         onPressed: () async {
