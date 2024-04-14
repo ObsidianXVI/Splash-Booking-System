@@ -1,16 +1,28 @@
-# splash_booking
+# Splash Booking System
 
-A new Flutter project.
+This in-house tool allows for bookings to be made for events within ACS(I). The website is available at: [http://splash-booking.web.app](http://splash-booking.web.app).
 
-## Getting Started
+# Features
+The following features have been implemented in the latest version of the system.
+## Identity
+- Users are identified by the first segment of their MS Teams IDs.
 
-This project is a starting point for a Flutter application.
+## Event Booking
+- Users may view events and the number of slots left
+- Users may book new events, and the system ensures that:
+    - The user only has 1 slot per activity
+    - Bookings are limited to the number of slots available
+    - The team registering for the event has sufficient members
+- Users may edit bookings, and the system ensures that the aforementioned constraints are respected
 
-A few resources to get you started if this is your first Flutter project:
+## Team Management
+- Users may view their teams, and the activity each team is participating in (if applicable)
+- Users may add new teams
+- Users may edit team members, and the system ensure that:
+    - The first member is the user himself, the team leader
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+# Pipeline
+The following features will be implemented soon.
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Team Locking
+- Currently, the system allows team sizes to be modified (through the addition new members or removal of old ones) even if the team already has a booking. This can create unexpected data inconsistencies, and will be remedied by only allowing member names to be edited for teams with existing bookings.
