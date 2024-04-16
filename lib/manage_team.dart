@@ -223,6 +223,7 @@ class EditTeamMembersModal extends ModalView {
 
 class EditTeamMembersModalState extends ModalViewState<EditTeamMembersModal> {
   late final List<String> newMembers;
+  bool warn = false;
 
   @override
   void initState() {
@@ -234,7 +235,9 @@ class EditTeamMembersModalState extends ModalViewState<EditTeamMembersModal> {
 
   List<Widget> generateOptions() {
     final List<Widget> options = [];
+    final List<TextEditingController> textControllers = [];
     for (int j = 0; j < newMembers.length; j++) {
+      textControllers.add(TextEditingController(text: newMembers[j]));
       options.addAll([
         Text(
           j == 0 ? "Member 1 (You, the team leader)" : "Member ${j + 1}",
@@ -246,7 +249,7 @@ class EditTeamMembersModalState extends ModalViewState<EditTeamMembersModal> {
         Wrap(
           children: [
             TextField(
-              controller: TextEditingController(text: newMembers[j]),
+              controller: textControllers[j],
               cursorColor: yellow,
               enabled: j != 0,
               decoration: InputDecoration(
@@ -261,10 +264,8 @@ class EditTeamMembersModalState extends ModalViewState<EditTeamMembersModal> {
                   ),
                 ),
               ),
-              onSubmitted: (value) {
-                setState(() {
-                  newMembers[j] = value;
-                });
+              onChanged: (value) {
+                newMembers[j] = textControllers[j].text;
               },
             ),
             if (!widget.hasBooking && j != 0)
@@ -349,8 +350,14 @@ class EditTeamMembersModalState extends ModalViewState<EditTeamMembersModal> {
                                 .get());
                         widget.viewState.teamData[newTeamData.id] = newTeamData;
                       }
-
+                      setState(() {
+                        warn = false;
+                      });
                       dismiss(context);
+                    } else {
+                      setState(() {
+                        warn = true;
+                      });
                     }
                   },
                   child: const Text("Update Team"),
@@ -382,6 +389,9 @@ class EditTeamMembersModalState extends ModalViewState<EditTeamMembersModal> {
             if (widget.hasBooking)
               const Text(
                   "Note: You can't add or remove from this team because there is an activity registered for this team. Try creating another team or unbooking the activity instead."),
+            if (warn)
+              const Text(
+                  "Error: You can't have duplicate members or empty member names."),
           ],
         ),
       ),
