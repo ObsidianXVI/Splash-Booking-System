@@ -104,6 +104,9 @@ class MakeBookingState extends State<MakeBooking> {
           instance: this,
           possibleTeams: t,
           teamSize: tsize,
+          activityName: activities[i].data()!['name'],
+          activityDesc: activities[i].data()!['description'],
+          disclaimer: activities[i].data()!['disclaimer'],
         ),
       );
     }
@@ -241,6 +244,9 @@ class ManageBookingModal extends ModalView {
   final MakeBookingState instance;
   final int teamSize;
   final String? oldTeamId;
+  final String activityName;
+  final String activityDesc;
+  final String? disclaimer;
 
   const ManageBookingModal({
     required this.i,
@@ -249,6 +255,9 @@ class ManageBookingModal extends ModalView {
     required this.instance,
     required this.possibleTeams,
     required this.teamSize,
+    required this.activityName,
+    required this.activityDesc,
+    required this.disclaimer,
     super.key,
   }) : super(title: 'Manage Booking');
 
@@ -299,6 +308,19 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Text(
+              widget.activityName,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 22,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              widget.activityDesc,
+            ),
+            const SizedBox(height: 40),
             const Text("Select a slot:"),
             const SizedBox(height: 10),
             DropdownButtonFormField(
@@ -392,6 +414,9 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
                 ),
               ],
             ),
+            const SizedBox(height: 40),
+            if (widget.disclaimer != null)
+              Text("Disclaimer: ${widget.disclaimer}"),
           ],
         ),
       ),
