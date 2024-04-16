@@ -44,3 +44,7 @@ app.*.map.json
 
 # Firebase Configs
 lib/firebase_configs.dart
+
+# Public Deployment
+public/main.dart.js
+

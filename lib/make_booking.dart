@@ -18,6 +18,29 @@ class MakeBookingState extends State<MakeBooking> {
   /// The number of slots remaining for each slot in each activity
   final List<List<int>> remaining = [];
 
+  @override
+  void initState() {
+    if (!shownNonRegPromo) {
+      Future.delayed(const Duration(seconds: 4), () {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              duration: Duration(seconds: 6),
+              content: Text(
+                "Do look out for other non-registration games like Slip N Slide, Paint Twister, Pose Splasher, Musical Cones and Dunk N Splash!",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          );
+          shownNonRegPromo = true;
+        }
+      });
+    }
+    super.initState();
+  }
+
   void resetState() {
     hasFetched = false;
     bookings.clear();
@@ -91,8 +114,8 @@ class MakeBookingState extends State<MakeBooking> {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      child: Stack(
+    return Scaffold(
+      body: Stack(
         alignment: Alignment.topCenter,
         children: [
           Positioned(

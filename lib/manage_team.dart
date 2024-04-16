@@ -10,56 +10,79 @@ class ManageTeam extends StatefulWidget {
 class ManageTeamState extends State<ManageTeam> {
   bool hasFetched = false;
 
-  final List<List<String>?> modifiedTeam = [];
   final Map<String, String> activityNames = {};
-  final List<DocumentSnapshot<Map<String, dynamic>>?> bookings = [];
-  final List<DocumentSnapshot<Map<String, dynamic>>> teams = [];
+
+  /// Maps a teamId to a bookingId
+  final Map<String, String> bookings = {};
+
+  /// Maps a teamId to team data
+  final Map<String, DocumentSnapshot<Map<String, dynamic>>> teamData = {};
+
+  /// Maps a teamId to updated team data
+  final Map<String, Map<String, dynamic>> updatedTeamData = {};
+
+  /// Maps a bookingId to booking data
+  final Map<String, DocumentSnapshot<Map<String, dynamic>>> bookingData = {};
 
   Future<void> resetState() async {
     hasFetched = false;
-    teams.clear();
     bookings.clear();
     activityNames.clear();
-    modifiedTeam.clear();
+    updatedTeamData.clear();
     await getTeams();
   }
 
   Future<void> getTeams() async {
     if (hasFetched) return;
 
-    final bookingData = await DB.getBookings();
-    for (final bk in bookingData) {
+    // bookings under this user
+    final bkData = await DB.getBookings();
+
+    for (final bk in bkData) {
+      // update the map of teamIds and booking ids
+      bookings[bk.data()['teamId']] = bk.id;
+
+      bookingData[bk.id] = bk;
+
+      // create a map of activity id to activity name
       activityNames[bk.id] = ((await db
               .collection('activities')
               .doc(bk.data()['activityId'])
               .get())
           .data()!['name']);
     }
+
+    // teams under this user
     for (final te in await DB.getTeams()) {
-      modifiedTeam.add(null);
-      teams.add(te);
-      for (final bk in bookingData) {
-        if (te.id == bk.data()['teamId']) {
-          bookings.add(bk);
-        } else {
-          bookings.add(null);
-        }
-      }
+      teamData[te.id] = te;
     }
 
     hasFetched = true;
   }
 
-  Future<void> editTeamDialog(int i) async {
+  Map<String, dynamic> getTeamDataFor(String id) {
+    if (updatedTeamData.containsKey(id)) {
+      return updatedTeamData[id]!;
+    } else {
+      return teamData[id]!.data()!;
+    }
+  }
+
+  Future<void> editTeamDialog(
+    DocumentSnapshot<Map<String, dynamic>>? booking,
+    DocumentSnapshot<Map<String, dynamic>>? tData,
+    bool hasBooking,
+  ) async {
     await showDialog(
       context: context,
       builder: (ctx) => EditTeamMembersModal(
-        bookings: bookings,
-        teams: teams,
-        editingTeamIndex: i,
+        booking: booking,
+        teamData: tData,
+        hasBooking: hasBooking,
+        viewState: this,
       ),
     );
-    await resetState();
+
     setState(() {});
   }
 
@@ -101,14 +124,15 @@ class ManageTeamState extends State<ManageTeam> {
                   return Center(
                       child: Column(
                     children: [
-                      teams.isEmpty
+                      teamData.isEmpty
                           ? const Text("No teams!")
                           : SizedBox(
                               width: 600,
                               height: 500,
                               child: ListView.separated(
                                 itemBuilder: (ctx, i) {
-                                  bool hasBooking = bookings[i] != null;
+                                  final String tid = teamData.keys.elementAt(i);
+                                  bool hasBooking = bookings.containsKey(tid);
                                   return Center(
                                     child: Container(
                                       child: Row(
@@ -121,18 +145,22 @@ class ManageTeamState extends State<ManageTeam> {
                                             children: [
                                               if (hasBooking)
                                                 Text(
-                                                  "Activity: ${activityNames[bookings[i]!.id]}",
+                                                  "Activity: ${activityNames[bookings[tid]]}",
                                                   style: const TextStyle(
                                                     fontWeight: FontWeight.bold,
                                                   ),
                                                 ),
                                               Text(
-                                                  "Members: ${(teams[i].data()!['members']).join(', ')}"),
+                                                  "Members: ${(getTeamDataFor(tid)['members']).join(', ')}"),
                                             ],
                                           ),
                                           TextButton(
                                             style: splashButtonStyle(),
-                                            onPressed: () => editTeamDialog(i),
+                                            onPressed: () => editTeamDialog(
+                                              bookingData[bookings[tid]],
+                                              teamData[tid],
+                                              hasBooking,
+                                            ),
                                             child: const Text("Edit Team"),
                                           ),
                                         ],
@@ -142,28 +170,23 @@ class ManageTeamState extends State<ManageTeam> {
                                 },
                                 separatorBuilder: (_, __) =>
                                     const SizedBox(height: 20),
-                                itemCount: teams.length,
+                                itemCount: teamData.length,
                               ),
                             ),
                       TextButton(
                         style: splashButtonStyle(),
                         onPressed: () async {
-                          final ref = await db.collection('teams').add({
-                            'main': userId,
-                            'members': [userId],
-                          });
-                          bookings.add(null);
-                          teams.add(await ref.get());
-                          modifiedTeam.add(null);
                           if (mounted) {
                             await showDialog(
                               context: context,
                               builder: (_) => EditTeamMembersModal(
-                                bookings: bookings,
-                                teams: teams,
-                                editingTeamIndex: teams.length - 1,
+                                booking: null,
+                                teamData: null,
+                                hasBooking: false,
+                                viewState: this,
                               ),
                             );
+                            setState(() {});
                           }
                         },
                         child: const Text('New Team'),
@@ -181,14 +204,16 @@ class ManageTeamState extends State<ManageTeam> {
 }
 
 class EditTeamMembersModal extends ModalView {
-  final int editingTeamIndex;
-  final List<DocumentSnapshot<Map<String, dynamic>>?> bookings;
-  final List<DocumentSnapshot<Map<String, dynamic>>> teams;
+  final ManageTeamState viewState;
+  final DocumentSnapshot<Map<String, dynamic>>? booking;
+  final DocumentSnapshot<Map<String, dynamic>>? teamData;
+  final bool hasBooking;
 
   const EditTeamMembersModal({
-    required this.bookings,
-    required this.teams,
-    required this.editingTeamIndex,
+    required this.booking,
+    required this.teamData,
+    required this.hasBooking,
+    required this.viewState,
     super.key,
   }) : super(title: 'Edit Team Members');
 
@@ -197,15 +222,13 @@ class EditTeamMembersModal extends ModalView {
 }
 
 class EditTeamMembersModalState extends ModalViewState<EditTeamMembersModal> {
-  late final bool linkedToActivity;
-
   late final List<String> newMembers;
 
   @override
   void initState() {
-    linkedToActivity = widget.bookings[widget.editingTeamIndex] != null;
-    newMembers = (widget.teams[widget.editingTeamIndex]['members'] as List)
-        .cast<String>();
+    newMembers = widget.teamData != null
+        ? (widget.teamData?.data()!['members'] as List).cast<String>()
+        : ['You'];
     super.initState();
   }
 
@@ -244,7 +267,7 @@ class EditTeamMembersModalState extends ModalViewState<EditTeamMembersModal> {
                 });
               },
             ),
-            if (j != 0)
+            if (!widget.hasBooking && j != 0)
               IconButton(
                 onPressed: () {
                   setState(() {
@@ -272,6 +295,13 @@ class EditTeamMembersModalState extends ModalViewState<EditTeamMembersModal> {
     return true;
   }
 
+  bool noEmptyMembers(List<String> members) {
+    for (final member in members) {
+      if (member == '') return false;
+    }
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
     return modalScaffold(
@@ -280,28 +310,45 @@ class EditTeamMembersModalState extends ModalViewState<EditTeamMembersModal> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ...generateOptions(),
-            TextButton(
-              style: splashButtonStyle(),
-              onPressed: () {
-                setState(() {
-                  newMembers.add('');
-                });
-              },
-              child: const Text("Add Member"),
-            ),
+            if (!widget.hasBooking)
+              TextButton(
+                style: splashButtonStyle(),
+                onPressed: () {
+                  setState(() {
+                    newMembers.add('');
+                  });
+                },
+                child: const Text("Add Member"),
+              ),
             const SizedBox(height: 30),
             Row(
               children: [
                 TextButton(
                   style: splashButtonStyle(),
                   onPressed: () async {
-                    if (allMembersAreUnique(newMembers)) {
-                      await db
-                          .collection('teams')
-                          .doc(widget.teams[widget.editingTeamIndex].id)
-                          .update({
-                        'members': newMembers,
-                      });
+                    if (allMembersAreUnique(newMembers) &&
+                        noEmptyMembers(newMembers)) {
+                      if (widget.teamData != null) {
+                        await db
+                            .collection('teams')
+                            .doc(widget.teamData!.id)
+                            .update({
+                          'members': newMembers,
+                        });
+                        widget.viewState.updatedTeamData[widget.teamData!.id] =
+                            {
+                          'main': userId,
+                          'members': newMembers,
+                        };
+                      } else {
+                        final newTeamData =
+                            (await (await db.collection('teams').add({
+                          'main': userId,
+                          'members': newMembers,
+                        }))
+                                .get());
+                        widget.viewState.teamData[newTeamData.id] = newTeamData;
+                      }
 
                       dismiss(context);
                     }
@@ -319,15 +366,22 @@ class EditTeamMembersModalState extends ModalViewState<EditTeamMembersModal> {
             TextButton(
               style: splashButtonStyle(),
               onPressed: () async {
-                await db
-                    .collection('teams')
-                    .doc(widget.teams[widget.editingTeamIndex].id)
-                    .delete();
+                if (widget.teamData != null) {
+                  await db
+                      .collection('teams')
+                      .doc(widget.teamData!.id)
+                      .delete();
+                }
 
+                widget.viewState.teamData.remove(widget.teamData!.id);
                 dismiss(context);
               },
               child: const Text("Delete Team"),
             ),
+            const SizedBox(height: 40),
+            if (widget.hasBooking)
+              const Text(
+                  "Note: You can't add or remove from this team because there is an activity registered for this team. Try creating another team or unbooking the activity instead."),
           ],
         ),
       ),
