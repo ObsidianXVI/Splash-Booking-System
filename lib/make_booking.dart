@@ -18,6 +18,29 @@ class MakeBookingState extends State<MakeBooking> {
   /// The number of slots remaining for each slot in each activity
   final List<List<int>> remaining = [];
 
+  @override
+  void initState() {
+    if (!shownNonRegPromo) {
+      Future.delayed(const Duration(seconds: 4), () {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              duration: Duration(seconds: 6),
+              content: Text(
+                "Do look out for other non-registration games like Slip N Slide, Paint Twister, Pose Splasher, Musical Cones and Dunk N Splash!",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          );
+          shownNonRegPromo = true;
+        }
+      });
+    }
+    super.initState();
+  }
+
   void resetState() {
     hasFetched = false;
     bookings.clear();
@@ -81,6 +104,9 @@ class MakeBookingState extends State<MakeBooking> {
           instance: this,
           possibleTeams: t,
           teamSize: tsize,
+          activityName: activities[i].data()!['name'],
+          activityDesc: activities[i].data()!['description'],
+          disclaimer: activities[i].data()!['disclaimer'],
         ),
       );
     }
@@ -91,8 +117,8 @@ class MakeBookingState extends State<MakeBooking> {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      child: Stack(
+    return Scaffold(
+      body: Stack(
         alignment: Alignment.topCenter,
         children: [
           Positioned(
@@ -218,6 +244,9 @@ class ManageBookingModal extends ModalView {
   final MakeBookingState instance;
   final int teamSize;
   final String? oldTeamId;
+  final String activityName;
+  final String activityDesc;
+  final String? disclaimer;
 
   const ManageBookingModal({
     required this.i,
@@ -226,6 +255,9 @@ class ManageBookingModal extends ModalView {
     required this.instance,
     required this.possibleTeams,
     required this.teamSize,
+    required this.activityName,
+    required this.activityDesc,
+    required this.disclaimer,
     super.key,
   }) : super(title: 'Manage Booking');
 
@@ -276,6 +308,19 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Text(
+              widget.activityName,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 22,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              widget.activityDesc,
+            ),
+            const SizedBox(height: 40),
             const Text("Select a slot:"),
             const SizedBox(height: 10),
             DropdownButtonFormField(
@@ -369,6 +414,9 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
                 ),
               ],
             ),
+            const SizedBox(height: 40),
+            if (widget.disclaimer != null)
+              Text("Disclaimer: ${widget.disclaimer}"),
           ],
         ),
       ),
