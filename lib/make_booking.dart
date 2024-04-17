@@ -183,12 +183,10 @@ class MakeBookingState extends State<MakeBooking> {
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
-                                      ...buttonContent
-                                      // ${slots[i][bookings[activities[i].id]!.data()!['slot']]}
-                                      ,
+                                      ...buttonContent,
                                     ],
                                   ),
-                                  const SizedBox(width: 5),
+                                  const SizedBox(width: 10),
                                   Column(
                                     children: [
                                       if (!hasBeenBooked)
@@ -215,6 +213,14 @@ class MakeBookingState extends State<MakeBooking> {
                                           },
                                           child: const Text("Edit booking"),
                                         ),
+                                      Text(
+                                        "${activities[i].data()!['teamSize']} per team",
+                                        textAlign: TextAlign.right,
+                                        style: TextStyle(
+                                          color: yellow.withOpacity(0.6),
+                                          fontStyle: FontStyle.italic,
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 ],
