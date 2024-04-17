@@ -168,6 +168,10 @@ class MakeBookingState extends State<MakeBooking> {
                                 );
                               })
                           ];
+                          final int ts =
+                              activities[i].data()!['teamSize'] as int;
+                          final String teamSizeLabel =
+                              ts == 1 ? "Individual" : "$ts per team";
                           return Center(
                             child: Container(
                               child: Row(
@@ -214,7 +218,7 @@ class MakeBookingState extends State<MakeBooking> {
                                           child: const Text("Edit booking"),
                                         ),
                                       Text(
-                                        "${activities[i].data()!['teamSize']} per team",
+                                        teamSizeLabel,
                                         textAlign: TextAlign.right,
                                         style: TextStyle(
                                           color: yellow.withOpacity(0.6),
@@ -289,19 +293,21 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
         ),
       );
     }
-    if (widget.possibleTeams.isNotEmpty) {
-      chosenTeam = widget.oldTeamId ?? widget.possibleTeams.first.id;
-    }
+    if (widget.teamSize > 1) {
+      if (widget.possibleTeams.isNotEmpty) {
+        chosenTeam = widget.oldTeamId ?? widget.possibleTeams.first.id;
+      }
 
-    for (int k = 0; k < widget.possibleTeams.length; k++) {
-      teamItems.add(
-        DropdownMenuItem<String>(
-          value: widget.possibleTeams[k].id,
-          child: Text(
-            (widget.possibleTeams[k].data()!['members'] as List).join(', '),
+      for (int k = 0; k < widget.possibleTeams.length; k++) {
+        teamItems.add(
+          DropdownMenuItem<String>(
+            value: widget.possibleTeams[k].id,
+            child: Text(
+              (widget.possibleTeams[k].data()!['members'] as List).join(', '),
+            ),
           ),
-        ),
-      );
+        );
+      }
     }
 
     super.initState();
@@ -309,6 +315,24 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
 
   @override
   Widget build(BuildContext context) {
+    final List<Widget> teamSelectWidgets = [];
+    if (widget.teamSize > 1) {
+      teamSelectWidgets.addAll([
+        const SizedBox(height: 20),
+        const Text("Select a team:"),
+        const SizedBox(height: 10),
+        if (widget.possibleTeams.isEmpty)
+          Text(
+              "You do not currently have teams with exactly ${widget.teamSize} members. Create one using the Manage Teams tab, and then try booking this activity."),
+        if (widget.possibleTeams.isNotEmpty)
+          DropdownButtonFormField<String>(
+            value: teamItems.first.value,
+            items: teamItems,
+            onChanged: (x) => chosenTeam = x ?? chosenTeam,
+          ),
+      ]);
+    }
+
     return modalScaffold(
       child: Form(
         child: Column(
@@ -334,24 +358,13 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
               items: items,
               onChanged: (x) => chosenSlot = x ?? chosenSlot,
             ),
-            const SizedBox(height: 20),
-            const Text("Select a team:"),
-            const SizedBox(height: 10),
-            if (widget.possibleTeams.isEmpty)
-              Text(
-                  "You do not currently have teams with exactly ${widget.teamSize} members. Create one using the Manage Teams tab, and then try booking this activity."),
-            if (widget.possibleTeams.isNotEmpty)
-              DropdownButtonFormField<String>(
-                value: teamItems.first.value,
-                items: teamItems,
-                onChanged: (x) => chosenTeam = x ?? chosenTeam,
-              ),
+            if (widget.teamSize > 1) ...teamSelectWidgets,
             const SizedBox(height: 20),
             Row(
               children: [
                 TextButton(
                   style: splashButtonStyle(),
-                  onPressed: chosenTeam != null
+                  onPressed: (widget.teamSize == 1 || chosenTeam != null)
                       ? () async {
                           if (widget.oldSlot == null) {
                             widget.instance.remaining[widget.i][chosenSlot] -=
@@ -362,7 +375,7 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
                               'activityId':
                                   widget.instance.activities[widget.i].id,
                               'slot': chosenSlot,
-                              'teamId': chosenTeam,
+                              if (widget.teamSize > 1) 'teamId': chosenTeam,
                             });
                           } else {
                             widget.instance.remaining[widget.i][chosenSlot] -=
@@ -373,7 +386,7 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
                                 await widget.instance.oldBookingId(widget.i);
                             await db.collection('bookings').doc(ob).update({
                               'slot': chosenSlot,
-                              'teamId': chosenTeam,
+                              if (widget.teamSize > 1) 'teamId': chosenTeam,
                             });
                           }
                           await db
