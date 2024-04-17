@@ -121,78 +121,85 @@ class ManageTeamState extends State<ManageTeam> {
                     ],
                   );
                 } else {
-                  return Center(
-                      child: Column(
-                    children: [
-                      teamData.isEmpty
-                          ? const Text("No teams!")
-                          : SizedBox(
-                              width: 600,
-                              height: 500,
-                              child: ListView.separated(
-                                itemBuilder: (ctx, i) {
-                                  final String tid = teamData.keys.elementAt(i);
-                                  bool hasBooking = bookings.containsKey(tid);
-                                  return Center(
-                                    child: Container(
-                                      child: Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              if (hasBooking)
-                                                Text(
-                                                  "Activity: ${activityNames[bookings[tid]]}",
-                                                  style: const TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                ),
-                                              Text(
-                                                  "Members: ${(getTeamDataFor(tid)['members']).join(', ')}"),
-                                            ],
-                                          ),
-                                          TextButton(
-                                            style: splashButtonStyle(),
-                                            onPressed: () => editTeamDialog(
-                                              bookingData[bookings[tid]],
-                                              teamData[tid],
-                                              hasBooking,
-                                            ),
-                                            child: const Text("Edit Team"),
-                                          ),
-                                        ],
+                  final List<Widget> items = [];
+                  for (int i = 0; i < teamData.length; i++) {
+                    final String tid = teamData.keys.elementAt(i);
+                    bool hasBooking = bookings.containsKey(tid);
+                    items.addAll([
+                      Center(
+                        child: Container(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  if (hasBooking)
+                                    Text(
+                                      activityNames[bookings[tid]]!,
+                                      textAlign: TextAlign.right,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
                                       ),
                                     ),
-                                  );
-                                },
-                                separatorBuilder: (_, __) =>
-                                    const SizedBox(height: 20),
-                                itemCount: teamData.length,
+                                  Text(
+                                    (getTeamDataFor(tid)['members']).join(', '),
+                                    textAlign: TextAlign.right,
+                                  ),
+                                ],
                               ),
-                            ),
-                      TextButton(
-                        style: splashButtonStyle(),
-                        onPressed: () async {
-                          if (mounted) {
-                            await showDialog(
-                              context: context,
-                              builder: (_) => EditTeamMembersModal(
-                                booking: null,
-                                teamData: null,
-                                hasBooking: false,
-                                viewState: this,
+                              const SizedBox(width: 10),
+                              TextButton(
+                                style: splashButtonStyle(),
+                                onPressed: () => editTeamDialog(
+                                  bookingData[bookings[tid]],
+                                  teamData[tid],
+                                  hasBooking,
+                                ),
+                                child: const Text("Edit Team"),
                               ),
-                            );
-                            setState(() {});
-                          }
-                        },
-                        child: const Text('New Team'),
+                            ],
+                          ),
+                        ),
                       ),
-                    ],
-                  ));
+                      const SizedBox(height: 20),
+                    ]);
+                  }
+
+                  return Padding(
+                    padding: const EdgeInsets.only(left: 20, right: 40),
+                    child: SingleChildScrollView(
+                      child: Center(
+                        child: Column(
+                          children: [
+                            if (teamData.isEmpty)
+                              const Text("No teams!")
+                            else
+                              ...items,
+                            const SizedBox(height: 60),
+                            TextButton(
+                              style: splashButtonStyle(),
+                              onPressed: () async {
+                                if (mounted) {
+                                  await showDialog(
+                                    context: context,
+                                    builder: (_) => EditTeamMembersModal(
+                                      booking: null,
+                                      teamData: null,
+                                      hasBooking: false,
+                                      viewState: this,
+                                    ),
+                                  );
+                                  setState(() {});
+                                }
+                              },
+                              child: const Text('New Team'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
                 }
               },
             ),
