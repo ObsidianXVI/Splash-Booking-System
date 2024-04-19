@@ -93,7 +93,7 @@ class ManageTeamState extends State<ManageTeam> {
         alignment: Alignment.topCenter,
         children: [
           Positioned(
-            top: 100,
+            top: 200,
             child: Image.asset(
               'images/acsplash_white.png',
               width: MediaQuery.of(context).size.width * 0.7,

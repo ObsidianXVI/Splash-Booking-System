@@ -11,6 +11,7 @@ part './manage_team.dart';
 part './modal_view.dart';
 part './styles.dart';
 part './db.dart';
+part './utils.dart';
 
 const Color blue = Color(0xFF111B2D);
 const Color red = Color(0xFFF02D3A);
@@ -127,7 +128,7 @@ class LoginPageState extends State<LoginPage>
             alignment: Alignment.topCenter,
             children: [
               Positioned(
-                top: 100,
+                top: 200,
                 child: Image.asset(
                   'images/acsplash_white.png',
                   width: MediaQuery.of(context).size.width * 0.7,

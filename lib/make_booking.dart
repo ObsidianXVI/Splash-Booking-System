@@ -11,6 +11,8 @@ class MakeBookingState extends State<MakeBooking> {
   bool hasFetched = false;
   final Map<String, DocumentSnapshot<Map<String, dynamic>>> bookings = {};
   final List<DocumentSnapshot<Map<String, dynamic>>> activities = [];
+  final List<DateTime> bookingStartTimes = [];
+  final List<DateTime> bookingEndTimes = [];
 
   /// The timestamp name of each slot for each activity
   final List<List<String>> slots = [];
@@ -50,10 +52,16 @@ class MakeBookingState extends State<MakeBooking> {
   }
 
   Future<void> getBookings() async {
-    bookings.addEntries([
-      for (final b in await DB.getBookings())
-        MapEntry(b.data()['activityId'], b)
-    ]);
+    final bks = await DB.getBookings();
+    for (final b in bks) {
+      final String actId = b.data()['activityId'];
+      bookings.addEntries([MapEntry(actId, b)]);
+      final act = activities.firstWhere((e) => e.id == actId);
+      final DateTime start = dtFrom24H(act.data()!['slots'][b.data()['slot']]);
+      bookingStartTimes.add(start);
+      bookingEndTimes
+          .add(start.add(Duration(minutes: act.data()!['slotSize'])));
+    }
   }
 
   Future<List<DocumentSnapshot<JSON>>> getTeams(int minMemberCount) async {
@@ -69,12 +77,13 @@ class MakeBookingState extends State<MakeBooking> {
 
   Future<void> getActivities() async {
     if (hasFetched) return;
-    await getBookings();
     for (final a in (await db.collection('activities').get()).docs) {
       activities.add(a);
       slots.add((a.data()['slots'] as List).cast<String>());
       remaining.add((a.data()['remaining'] as List).cast<int>());
     }
+    await getBookings();
+
     hasFetched = true;
     return;
   }
@@ -122,7 +131,7 @@ class MakeBookingState extends State<MakeBooking> {
         alignment: Alignment.topCenter,
         children: [
           Positioned(
-            top: 100,
+            top: 200,
             child: Image.asset(
               'images/acsplash_white.png',
               width: MediaQuery.of(context).size.width * 0.7,
@@ -285,10 +294,19 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
   void initState() {
     chosenSlot = widget.oldSlot ?? 0;
     for (int j = 0; j < widget.instance.slots[widget.i].length; j++) {
+      bool overlapping = false;
+      for (int k = 0; k < widget.instance.bookings.length; k++) {
+        if (dtFrom24H(widget.instance.slots[widget.i][j]).isBetweenOrOn(
+            widget.instance.bookingStartTimes[k],
+            widget.instance.bookingEndTimes[k])) {
+          overlapping = true;
+          break;
+        }
+      }
       items.add(
         DropdownMenuItem<int>(
           value: j,
-          enabled: widget.instance.remaining[widget.i][j] > 0,
+          enabled: widget.instance.remaining[widget.i][j] > 0 && !overlapping,
           child: Text(widget.instance.slots[widget.i][j]),
         ),
       );
@@ -354,7 +372,7 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
             const Text("Select a slot:"),
             const SizedBox(height: 10),
             DropdownButtonFormField(
-              value: chosenSlot,
+              value: items[chosenSlot].enabled ? chosenSlot : null,
               items: items,
               onChanged: (x) => chosenSlot = x ?? chosenSlot,
             ),
