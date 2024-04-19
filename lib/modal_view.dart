@@ -33,7 +33,10 @@ abstract class ModalViewState<T extends ModalView> extends State<T> {
             child: SingleChildScrollView(
               child: Column(
                 children: [
-                  Text(widget.title),
+                  Text(
+                    widget.title,
+                    textAlign: TextAlign.center,
+                  ),
                   const SizedBox(height: 40),
                   child,
                 ],

@@ -21,4 +21,10 @@ class DB {
     return (await db.collection('teams').where('main', isEqualTo: userId).get())
         .docs;
   }
+
+  static Future<DocumentSnapshot<JSON>?> getUserWithCode(
+      String bookingCode) async {
+    final snapshot = (await db.collection('codes').doc(bookingCode).get());
+    return snapshot.exists ? snapshot : null;
+  }
 }

@@ -222,7 +222,10 @@ class EditTeamMembersModal extends ModalView {
     required this.hasBooking,
     required this.viewState,
     super.key,
-  }) : super(title: 'Edit Team Members');
+  }) : super(
+          title:
+              'Edit Team Members\nAdd team members by typing in their booking codes.',
+        );
 
   @override
   ModalViewState createState() => EditTeamMembersModalState();
@@ -231,6 +234,7 @@ class EditTeamMembersModal extends ModalView {
 class EditTeamMembersModalState extends ModalViewState<EditTeamMembersModal> {
   late final List<String> newMembers;
   bool warn = false;
+  int errIndex = -1;
 
   @override
   void initState() {
@@ -262,7 +266,9 @@ class EditTeamMembersModalState extends ModalViewState<EditTeamMembersModal> {
               decoration: InputDecoration(
                 enabledBorder: UnderlineInputBorder(
                   borderSide: BorderSide(
-                    color: yellow.withOpacity(0.3),
+                    color: j == errIndex
+                        ? red.withOpacity(0.6)
+                        : yellow.withOpacity(0.3),
                   ),
                 ),
                 focusedBorder: const UnderlineInputBorder(
@@ -336,6 +342,27 @@ class EditTeamMembersModalState extends ModalViewState<EditTeamMembersModal> {
                   onPressed: () async {
                     if (allMembersAreUnique(newMembers) &&
                         noEmptyMembers(newMembers)) {
+                      int invalidMemIndex = -1;
+                      for (int i = 1; i < newMembers.length; i++) {
+                        final snap = await db
+                            .collection('codes')
+                            .doc(newMembers[i])
+                            .get();
+                        if (!snap.exists) {
+                          invalidMemIndex = i;
+                          break;
+                        }
+                      }
+                      errIndex = invalidMemIndex;
+
+                      if (invalidMemIndex != -1) {
+                        setState(() {});
+                        return;
+                      } else {
+                        setState(() {});
+                      }
+
+                      // have to update an existing team
                       if (widget.teamData != null) {
                         await db
                             .collection('teams')
@@ -349,6 +376,7 @@ class EditTeamMembersModalState extends ModalViewState<EditTeamMembersModal> {
                           'members': newMembers,
                         };
                       } else {
+                        // create new team
                         final newTeamData =
                             (await (await db.collection('teams').add({
                           'main': userId,
@@ -399,6 +427,11 @@ class EditTeamMembersModalState extends ModalViewState<EditTeamMembersModal> {
             if (warn)
               const Text(
                   "Error: You can't have duplicate members or empty member names."),
+            if (errIndex != -1)
+              Text(
+                "Error: Booking code ${newMembers[errIndex]} not found.",
+                style: const TextStyle(color: red),
+              ),
           ],
         ),
       ),

@@ -76,6 +76,7 @@ class LoginPageState extends State<LoginPage>
   bool showBottomHint = false;
   bool enabled = false;
   bool showBottomErr = false;
+  String? userName;
 
   @override
   void initState() {
@@ -176,12 +177,11 @@ class LoginPageState extends State<LoginPage>
                         ),
                         onSubmitted: (String bookingId) async {
                           bookingId = bookingId.trim().toLowerCase();
-
-                          final bool codeIsValid = (await db
-                                  .collection('codes')
-                                  .doc(bookingId)
-                                  .get())
-                              .exists;
+                          final codeDoc = (await db
+                              .collection('codes')
+                              .doc(bookingId)
+                              .get());
+                          final bool codeIsValid = codeDoc.exists;
                           if (!codeIsValid) {
                             setState(() {
                               enabled = false;
@@ -192,6 +192,7 @@ class LoginPageState extends State<LoginPage>
                             setState(() {
                               enabled = true;
                               userId = bookingId;
+                              userName = codeDoc.data()!['name'];
                               showBottomHint = true;
                               showBottomErr = false;
                             });
@@ -201,9 +202,13 @@ class LoginPageState extends State<LoginPage>
                     ),
                     const SizedBox(height: 30),
                     if (showBottomErr) const Text("Booking code not found."),
+                    if (userName != null && showBottomHint)
+                      Text("Hello $userName!"),
                     if (showBottomHint)
                       const Text(
-                          "Now use the tabs above to create/view/edit bookings, and to choose team members to register with."),
+                        "Please use the tabs above to create/view/edit bookings, and to choose team members to register with.",
+                        textAlign: TextAlign.center,
+                      ),
                   ],
                 ),
               ),
