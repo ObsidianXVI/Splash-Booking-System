@@ -40,6 +40,7 @@ class SplashApp extends StatelessWidget {
       title: 'Splash Booking',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
+        primaryColor: blue,
         colorScheme: const ColorScheme(
           brightness: Brightness.dark,
           primary: blue,
