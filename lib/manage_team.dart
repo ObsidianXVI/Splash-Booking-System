@@ -408,6 +408,26 @@ class EditTeamMembersModalState extends ModalViewState<EditTeamMembersModal> {
             TextButton(
               style: splashButtonStyle(),
               onPressed: () async {
+                if (widget.hasBooking) {
+                  final rem = ((await db
+                              .collection('activities')
+                              .doc(widget.booking!.data()!['activityId'])
+                              .get())
+                          .data()!['remaining'] as List)
+                      .cast<int>();
+                  rem[widget.booking!.data()!['slot']] =
+                      widget.booking!.data()!['slot'] + 1;
+                  await db
+                      .collection('activities')
+                      .doc(widget.booking!.data()!['activityId'])
+                      .update({
+                    'remaining': rem,
+                  });
+                  await db
+                      .collection('bookings')
+                      .doc(widget.booking!.id)
+                      .delete();
+                }
                 if (widget.teamData != null) {
                   await db
                       .collection('teams')
