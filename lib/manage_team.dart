@@ -340,7 +340,7 @@ class EditTeamMembersModalState extends ModalViewState<EditTeamMembersModal> {
                 TextButton(
                   style: splashButtonStyle(),
                   onPressed: () async {
-                    if (allMembersAreUnique(newMembers) &&
+                    if (allMembersAreUnique([userId, ...newMembers]) &&
                         noEmptyMembers(newMembers)) {
                       int invalidMemIndex = -1;
                       for (int i = 1; i < newMembers.length; i++) {
