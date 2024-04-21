@@ -30,7 +30,7 @@ class MakeBookingState extends State<MakeBooking> {
             const SnackBar(
               duration: Duration(seconds: 6),
               content: Text(
-                "Do look out for other non-registration games like Slip N Slide, Paint Twister, Pose Splasher, Musical Cones and Dunk N Splash!",
+                "Do look out for other non-registration games like ACquaslide, Paint Twister, Pose Splasher, Musical Cones and Dunk N Splash!",
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                 ),
@@ -359,7 +359,14 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
         DropdownMenuItem<int>(
           value: j,
           enabled: widget.instance.remaining[widget.i][j] > 0 && !overlapping,
-          child: Text(widget.instance.slots[widget.i][j]),
+          child: Text(
+            widget.instance.slots[widget.i][j],
+            style: TextStyle(
+              color: widget.instance.remaining[widget.i][j] > 0 && !overlapping
+                  ? yellow
+                  : yellow.withOpacity(0.4),
+            ),
+          ),
         ),
       );
     }
@@ -534,7 +541,11 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
             const SizedBox(height: 40),
             if (widget.disclaimer != null)
               Text("Disclaimer: ${widget.disclaimer}"),
-            if (bottomHint != null) Text(bottomHint!),
+            if (bottomHint != null)
+              Text(
+                bottomHint!,
+                style: const TextStyle(color: red),
+              ),
           ],
         ),
       ),
