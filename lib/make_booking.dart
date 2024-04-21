@@ -10,6 +10,7 @@ class MakeBooking extends StatefulWidget {
 class MakeBookingState extends State<MakeBooking> {
   bool hasFetched = false;
   final Map<String, DocumentSnapshot<Map<String, dynamic>>> bookings = {};
+  final List<DocumentSnapshot<JSON>> involvedBookings = [];
   final List<DocumentSnapshot<Map<String, dynamic>>> activities = [];
   final List<DateTime> bookingStartTimes = [];
   final List<DateTime> bookingEndTimes = [];
@@ -49,6 +50,9 @@ class MakeBookingState extends State<MakeBooking> {
     activities.clear();
     slots.clear();
     remaining.clear();
+    involvedBookings.clear();
+    bookingStartTimes.clear();
+    bookingEndTimes.clear();
   }
 
   Future<void> getBookings() async {
@@ -62,6 +66,9 @@ class MakeBookingState extends State<MakeBooking> {
       bookingEndTimes
           .add(start.add(Duration(minutes: act.data()!['slotSize'])));
     }
+
+    involvedBookings.addAll(
+        (await db.collection('codes').doc(userId).get()).data()!['bookings']);
   }
 
   Future<List<DocumentSnapshot<JSON>>> getTeams(int minMemberCount) async {
@@ -77,6 +84,7 @@ class MakeBookingState extends State<MakeBooking> {
 
   Future<void> getActivities() async {
     if (hasFetched) return;
+
     for (final a in (await db.collection('activities').get()).docs) {
       activities.add(a);
       slots.add((a.data()['slots'] as List).cast<String>());
@@ -119,9 +127,9 @@ class MakeBookingState extends State<MakeBooking> {
         ),
       );
     }
-    setState(() {
-      resetState();
-    });
+
+    resetState();
+    setState(() {});
   }
 
   @override
@@ -208,7 +216,7 @@ class MakeBookingState extends State<MakeBooking> {
                                           onPressed: () => bookingDialog(i),
                                           child: const Text("Book This"),
                                         ),
-                                      if (hasBeenBooked)
+                                      if (hasBeenBooked) ...[
                                         TextButton(
                                           style: splashButtonStyle(),
                                           onPressed: () async {
@@ -226,6 +234,49 @@ class MakeBookingState extends State<MakeBooking> {
                                           },
                                           child: const Text("Edit booking"),
                                         ),
+                                        const SizedBox(height: 10),
+                                        TextButton(
+                                          style: splashButtonStyle(),
+                                          onPressed: () async {
+                                            final bking =
+                                                bookings[activities[i].id];
+                                            remaining[i]
+                                                [bking!.data()!['slot']] += 1;
+                                            await db
+                                                .collection('bookings')
+                                                .doc(bookings[activities[i].id]!
+                                                    .id)
+                                                .delete();
+
+                                            await db
+                                                .collection('activities')
+                                                .doc(activities[i].id)
+                                                .update({
+                                              'remaining': remaining[i]
+                                            });
+                                            final String? teamId =
+                                                bking.data()!['teamId'];
+                                            await propagateBookingToMembers(
+                                              teamId != null
+                                                  ? ((await db
+                                                                  .collection(
+                                                                      'teams')
+                                                                  .doc(teamId)
+                                                                  .get())
+                                                              .data()![
+                                                          'members'] as List)
+                                                      .cast<String>()
+                                                  : [userId],
+                                              bking.id,
+                                              false,
+                                            );
+                                            bookings.remove(activities[i].id);
+                                            hasFetched = true;
+                                            setState(() {});
+                                          },
+                                          child: const Text("Remove booking"),
+                                        ),
+                                      ],
                                       Text(
                                         teamSizeLabel,
                                         textAlign: TextAlign.right,
@@ -241,7 +292,7 @@ class MakeBookingState extends State<MakeBooking> {
                             ),
                           );
                         },
-                        separatorBuilder: (_, __) => const SizedBox(height: 20),
+                        separatorBuilder: (_, __) => const SizedBox(height: 30),
                         itemCount: activities.length,
                       ),
                     ),
@@ -289,6 +340,7 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
   final List<DropdownMenuItem<String>> teamItems = [];
   late int chosenSlot;
   String? chosenTeam;
+  String? bottomHint;
 
   @override
   void initState() {
@@ -351,6 +403,34 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
       ]);
     }
 
+    Future<List<String>> checkForOverlap(
+        String slotStart, int slotSize, List<String> memCodes) async {
+      final int thisStart = dtFrom24H(slotStart).millisecondsSinceEpoch;
+      final int thisEnd = thisStart + slotSize * 60000;
+      final List<String> memNames = [];
+      memCodes[0] = userId;
+      for (final memCode in memCodes) {
+        final memDoc = await db.collection('codes').doc(memCode).get();
+        for (final bkId in memDoc.data()!['bookings']) {
+          final bking = await db.collection('bookings').doc(bkId).get();
+          final act = await db
+              .collection('activities')
+              .doc(bking.data()!['activityId'])
+              .get();
+          final DateTime start =
+              dtFrom24H(act.data()!['slots'][bking.data()!['slot']]);
+          final DateTime end =
+              start.add(Duration(minutes: act.data()!['slotSize']));
+          if (dateRangesOverlap(start.millisecondsSinceEpoch,
+              end.millisecondsSinceEpoch, thisStart, thisEnd)) {
+            memNames.add(memDoc.data()!['name']);
+          }
+        }
+      }
+
+      return memNames;
+    }
+
     return modalScaffold(
       child: Form(
         child: Column(
@@ -384,17 +464,45 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
                   style: splashButtonStyle(),
                   onPressed: (widget.teamSize == 1 || chosenTeam != null)
                       ? () async {
+                          final act = widget.instance.activities[widget.i];
+                          final List<String> memberCodes = chosenTeam != null
+                              ? ((await db
+                                          .collection('teams')
+                                          .doc(chosenTeam)
+                                          .get())
+                                      .data()!['members'] as List)
+                                  .cast<String>()
+                              : [userId];
+                          final overlaps = await checkForOverlap(
+                            act.data()!['slots'][chosenSlot],
+                            act.data()!['slotSize'] as int,
+                            widget.teamSize == 1 ? [userId] : memberCodes,
+                          );
+
+                          if (overlaps.isNotEmpty) {
+                            setState(() {
+                              bottomHint =
+                                  "${overlaps.length} members (${overlaps.join(', ')}) have bookings that overlap with these timings.";
+                            });
+                            return;
+                          } else {
+                            setState(() {
+                              bottomHint = null;
+                            });
+                          }
+
                           if (widget.oldSlot == null) {
                             widget.instance.remaining[widget.i][chosenSlot] -=
                                 1;
 
-                            await db.collection('bookings').add({
+                            final dref = await db.collection('bookings').add({
                               'userId': userId,
-                              'activityId':
-                                  widget.instance.activities[widget.i].id,
+                              'activityId': act.id,
                               'slot': chosenSlot,
                               if (widget.teamSize > 1) 'teamId': chosenTeam,
                             });
+                            await propagateBookingToMembers(
+                                memberCodes, dref.id);
                           } else {
                             widget.instance.remaining[widget.i][chosenSlot] -=
                                 1;
@@ -407,10 +515,7 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
                               if (widget.teamSize > 1) 'teamId': chosenTeam,
                             });
                           }
-                          await db
-                              .collection('activities')
-                              .doc(widget.instance.activities[widget.i].id)
-                              .update({
+                          await db.collection('activities').doc(act.id).update({
                             'remaining': widget.instance.remaining[widget.i]
                           });
 
@@ -419,31 +524,6 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
                       : null,
                   child: Text(widget.oldSlot == null ? "Book" : "Update"),
                 ),
-                if (widget.oldSlot != null)
-                  TextButton(
-                    style: splashButtonStyle(),
-                    onPressed: () async {
-                      widget.instance.remaining[widget.i][chosenSlot] += 1;
-                      await db
-                          .collection('bookings')
-                          .doc(widget
-                              .instance
-                              .bookings[
-                                  widget.instance.activities[widget.i].id]!
-                              .id)
-                          .delete();
-
-                      await db
-                          .collection('activities')
-                          .doc(widget.instance.activities[widget.i].id)
-                          .update({
-                        'remaining': widget.instance.remaining[widget.i]
-                      });
-
-                      dismiss(context);
-                    },
-                    child: const Text("Remove booking"),
-                  ),
                 TextButton(
                   style: splashButtonStyle(),
                   onPressed: () => Navigator.of(context).pop(),
@@ -454,6 +534,7 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
             const SizedBox(height: 40),
             if (widget.disclaimer != null)
               Text("Disclaimer: ${widget.disclaimer}"),
+            if (bottomHint != null) Text(bottomHint!),
           ],
         ),
       ),
