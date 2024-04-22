@@ -58,10 +58,10 @@ class MakeBookingState extends State<MakeBooking> {
   Future<void> getBookings() async {
     final bks = await DB.getBookings();
     for (final b in bks) {
-      final String actId = b.data()['activityId'];
+      final String actId = b.data()!['activityId'];
       bookings.addEntries([MapEntry(actId, b)]);
       final act = activities.firstWhere((e) => e.id == actId);
-      final DateTime start = dtFrom24H(act.data()!['slots'][b.data()['slot']]);
+      final DateTime start = dtFrom24H(act.data()!['slots'][b.data()!['slot']]);
       bookingStartTimes.add(start);
       bookingEndTimes
           .add(start.add(Duration(minutes: act.data()!['slotSize'])));
@@ -417,6 +417,7 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
       final List<String> memNames = [];
       memCodes[0] = userId;
       for (final memCode in memCodes) {
+        if (memCode == userId) continue;
         final memDoc = await db.collection('codes').doc(memCode).get();
         for (final bkId in memDoc.data()!['bookings']) {
           final bking = await db.collection('bookings').doc(bkId).get();

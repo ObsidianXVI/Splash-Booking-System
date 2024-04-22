@@ -40,14 +40,15 @@ class ManageTeamState extends State<ManageTeam> {
 
     for (final bk in bkData) {
       // update the map of teamIds and booking ids
-      bookings[bk.data()['teamId']] = bk.id;
-
-      bookingData[bk.id] = bk;
+      if (bk.data()!.containsKey('teamId')) {
+        bookings[bk.data()!['teamId']] = bk.id;
+        bookingData[bk.id] = bk;
+      }
 
       // create a map of activity id to activity name
       activityNames[bk.id] = ((await db
               .collection('activities')
-              .doc(bk.data()['activityId'])
+              .doc(bk.data()!['activityId'])
               .get())
           .data()!['name']);
     }
@@ -363,6 +364,7 @@ class EditTeamMembersModalState extends ModalViewState<EditTeamMembersModal> {
                       }
 
                       // have to update an existing team
+                      newMembers[0] = userId;
                       if (widget.teamData != null) {
                         await db
                             .collection('teams')
@@ -427,6 +429,17 @@ class EditTeamMembersModalState extends ModalViewState<EditTeamMembersModal> {
                       .collection('bookings')
                       .doc(widget.booking!.id)
                       .delete();
+                  await propagateBookingToMembers(
+                      widget.teamData != null
+                          ? ((await db
+                                      .collection('teams')
+                                      .doc(widget.teamData!.id)
+                                      .get())
+                                  .data()!['members'] as List)
+                              .cast<String>()
+                          : [userId],
+                      widget.booking!.id,
+                      false);
                 }
                 if (widget.teamData != null) {
                   await db
