@@ -10,7 +10,7 @@ class MakeBooking extends StatefulWidget {
 class MakeBookingState extends State<MakeBooking> {
   bool hasFetched = false;
   final Map<String, DocumentSnapshot<Map<String, dynamic>>> bookings = {};
-  final List<DocumentSnapshot<JSON>> involvedBookings = [];
+  // final List<DocumentSnapshot<JSON>> involvedBookings = [];
   final List<DocumentSnapshot<Map<String, dynamic>>> activities = [];
   final List<DateTime> bookingStartTimes = [];
   final List<DateTime> bookingEndTimes = [];
@@ -50,7 +50,7 @@ class MakeBookingState extends State<MakeBooking> {
     activities.clear();
     slots.clear();
     remaining.clear();
-    involvedBookings.clear();
+    // involvedBookings.clear();
     bookingStartTimes.clear();
     bookingEndTimes.clear();
   }
@@ -67,8 +67,8 @@ class MakeBookingState extends State<MakeBooking> {
           .add(start.add(Duration(minutes: act.data()!['slotSize'])));
     }
 
-    involvedBookings.addAll(
-        (await db.collection('codes').doc(userId).get()).data()!['bookings']);
+    /* involvedBookings.addAll(
+        (await db.collection('codes').doc(userId).get()).data()!['bookings']); */
   }
 
   Future<List<DocumentSnapshot<JSON>>> getTeams(int minMemberCount) async {
@@ -124,6 +124,7 @@ class MakeBookingState extends State<MakeBooking> {
           activityName: activities[i].data()!['name'],
           activityDesc: activities[i].data()!['description'],
           disclaimer: activities[i].data()!['disclaimer'],
+          activityId: activities[i].id,
         ),
       );
     }
@@ -317,6 +318,7 @@ class ManageBookingModal extends ModalView {
   final String activityName;
   final String activityDesc;
   final String? disclaimer;
+  final String activityId;
 
   const ManageBookingModal({
     required this.i,
@@ -328,6 +330,7 @@ class ManageBookingModal extends ModalView {
     required this.activityName,
     required this.activityDesc,
     required this.disclaimer,
+    required this.activityId,
     super.key,
   }) : super(title: 'Manage Booking');
 
@@ -348,6 +351,11 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
     for (int j = 0; j < widget.instance.slots[widget.i].length; j++) {
       bool overlapping = false;
       for (int k = 0; k < widget.instance.bookings.length; k++) {
+        if (widget.instance.bookings.entries
+                .elementAt(k)
+                .value
+                .data()!['activityId'] ==
+            widget.activityId) continue;
         if (dtFrom24H(widget.instance.slots[widget.i][j]).isBetweenOrOn(
             widget.instance.bookingStartTimes[k],
             widget.instance.bookingEndTimes[k])) {
@@ -355,16 +363,21 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
           break;
         }
       }
+      final bool enbled;
+      if (widget.oldSlot != null && widget.oldSlot == j) {
+        enbled = true;
+      } else {
+        enbled = widget.instance.remaining[widget.i][j] > 0 && !overlapping;
+      }
+
       items.add(
         DropdownMenuItem<int>(
           value: j,
-          enabled: widget.instance.remaining[widget.i][j] > 0 && !overlapping,
+          enabled: enbled,
           child: Text(
             widget.instance.slots[widget.i][j],
             style: TextStyle(
-              color: widget.instance.remaining[widget.i][j] > 0 && !overlapping
-                  ? yellow
-                  : yellow.withOpacity(0.4),
+              color: enbled ? yellow : yellow.withOpacity(0.4),
             ),
           ),
         ),

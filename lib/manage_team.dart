@@ -70,18 +70,6 @@ class ManageTeamState extends State<ManageTeam> {
     hasFetched = true;
   }
 
-/*   Future<List<String>> getTeamDataFor(String id) async {
-    final List<String> memNames = [];
-    final List<String> memCodes = updatedTeamData.containsKey(id)
-        ? updatedTeamData[id]!['members']
-        : teamData[id]!.data()!['members']!;
-    for (final mc in memCodes) {
-      memNames
-          .add((await db.collection('codes').doc(mc).get()).data()!['name']);
-    }
-    return memNames;
-  } */
-
   Future<void> editTeamDialog(
     DocumentSnapshot<Map<String, dynamic>>? booking,
     DocumentSnapshot<Map<String, dynamic>>? tData,
@@ -203,6 +191,7 @@ class ManageTeamState extends State<ManageTeam> {
                                       memberNames: const [],
                                     ),
                                   );
+                                  await resetState();
                                   setState(() {});
                                 }
                               },
@@ -268,7 +257,7 @@ class EditTeamMembersModalState extends ModalViewState<EditTeamMembersModal> {
         Text(
           j == 0
               ? "Member 1 (You, the team leader)"
-              : "Member ${j + 1} (${widget.memberNames[j]})",
+              : "Member ${j + 1}${j < widget.memberNames.length ? ' (${widget.memberNames[j]})' : ''}",
           style: const TextStyle(
             fontStyle: FontStyle.italic,
           ),
