@@ -36,7 +36,7 @@ bool dateRangesOverlap(
   int startB,
   int endB,
 ) {
-  if (endA <= startB || startA >= endB) {
+  if (endA < startB || startA > endB) {
     return false;
   } else {
     return true;

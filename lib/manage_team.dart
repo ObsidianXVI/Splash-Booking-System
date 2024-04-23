@@ -24,11 +24,15 @@ class ManageTeamState extends State<ManageTeam> {
   /// Maps a bookingId to booking data
   final Map<String, DocumentSnapshot<Map<String, dynamic>>> bookingData = {};
 
+  /// Maps a teamId to member names
+  final Map<String, List<String>> membersNames = {};
+
   Future<void> resetState() async {
     hasFetched = false;
     bookings.clear();
     activityNames.clear();
     updatedTeamData.clear();
+    membersNames.clear();
     await getTeams();
   }
 
@@ -56,18 +60,27 @@ class ManageTeamState extends State<ManageTeam> {
     // teams under this user
     for (final te in await DB.getTeams()) {
       teamData[te.id] = te;
+
+      membersNames[te.id] = [
+        for (final mc in te.data()['members'])
+          ((await db.collection('codes').doc(mc).get()).data()!['name'])
+      ];
     }
 
     hasFetched = true;
   }
 
-  Map<String, dynamic> getTeamDataFor(String id) {
-    if (updatedTeamData.containsKey(id)) {
-      return updatedTeamData[id]!;
-    } else {
-      return teamData[id]!.data()!;
+/*   Future<List<String>> getTeamDataFor(String id) async {
+    final List<String> memNames = [];
+    final List<String> memCodes = updatedTeamData.containsKey(id)
+        ? updatedTeamData[id]!['members']
+        : teamData[id]!.data()!['members']!;
+    for (final mc in memCodes) {
+      memNames
+          .add((await db.collection('codes').doc(mc).get()).data()!['name']);
     }
-  }
+    return memNames;
+  } */
 
   Future<void> editTeamDialog(
     DocumentSnapshot<Map<String, dynamic>>? booking,
@@ -80,6 +93,7 @@ class ManageTeamState extends State<ManageTeam> {
         booking: booking,
         teamData: tData,
         hasBooking: hasBooking,
+        memberNames: membersNames[tData!.id]!,
         viewState: this,
       ),
     );
@@ -143,10 +157,7 @@ class ManageTeamState extends State<ManageTeam> {
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
-                                  Text(
-                                    (getTeamDataFor(tid)['members']).join(', '),
-                                    textAlign: TextAlign.right,
-                                  ),
+                                  Text(membersNames[tid]!.join(', ')),
                                 ],
                               ),
                               const SizedBox(width: 10),
@@ -189,6 +200,7 @@ class ManageTeamState extends State<ManageTeam> {
                                       teamData: null,
                                       hasBooking: false,
                                       viewState: this,
+                                      memberNames: const [],
                                     ),
                                   );
                                   setState(() {});
@@ -216,12 +228,14 @@ class EditTeamMembersModal extends ModalView {
   final DocumentSnapshot<Map<String, dynamic>>? booking;
   final DocumentSnapshot<Map<String, dynamic>>? teamData;
   final bool hasBooking;
+  final List<String> memberNames;
 
   const EditTeamMembersModal({
     required this.booking,
     required this.teamData,
     required this.hasBooking,
     required this.viewState,
+    required this.memberNames,
     super.key,
   }) : super(
           title:
@@ -252,7 +266,9 @@ class EditTeamMembersModalState extends ModalViewState<EditTeamMembersModal> {
       textControllers.add(TextEditingController(text: newMembers[j]));
       options.addAll([
         Text(
-          j == 0 ? "Member 1 (You, the team leader)" : "Member ${j + 1}",
+          j == 0
+              ? "Member 1 (You, the team leader)"
+              : "Member ${j + 1} (${widget.memberNames[j]})",
           style: const TextStyle(
             fontStyle: FontStyle.italic,
           ),
