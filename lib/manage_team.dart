@@ -411,6 +411,48 @@ class EditTeamMembersModalState extends ModalViewState<EditTeamMembersModal> {
               style: splashButtonStyle(),
               onPressed: () async {
                 if (widget.hasBooking) {
+                  final bool confirm = await showDialog(
+                    barrierDismissible: false,
+                    context: context,
+                    builder: (c) {
+                      return Center(
+                        child: Container(
+                          width: 200,
+                          height: 400,
+                          child: Column(
+                            children: [
+                              const Text(
+                                  "This team is registered for an activity. Deleting the team will remove that booking. Do you want to continue?"),
+                              Row(
+                                children: [
+                                  TextButton(
+                                    style: splashButtonStyle(),
+                                    onPressed: () {
+                                      Navigator.of(c).pop(true);
+                                    },
+                                    child: const Text('Yes'),
+                                  ),
+                                  TextButton(
+                                    style: splashButtonStyle(),
+                                    onPressed: () {
+                                      Navigator.of(c).pop(false);
+                                    },
+                                    child: const Text('No'),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  );
+
+                  if (!confirm) {
+                    dismiss(context);
+                    return;
+                  }
+
                   final rem = ((await db
                               .collection('activities')
                               .doc(widget.booking!.data()!['activityId'])
@@ -456,7 +498,7 @@ class EditTeamMembersModalState extends ModalViewState<EditTeamMembersModal> {
             const SizedBox(height: 40),
             if (widget.hasBooking)
               const Text(
-                  "Note: You can't add or remove from this team because there is an activity registered for this team. Try creating another team or unbooking the activity instead."),
+                  "Note: You can't add or remove members from this team because there is an activity registered for this team. Try creating another team or unbooking the activity instead."),
             if (warn)
               const Text(
                   "Error: You can't have duplicate members or empty member names."),
