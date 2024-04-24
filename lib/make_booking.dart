@@ -111,6 +111,14 @@ class MakeBookingState extends State<MakeBooking> {
   Future<void> bookingDialog(int i, [int? oldSlot, String? oldTeamId]) async {
     final tsize = activities[i].data()!['teamSize'];
     final t = await getTeams(tsize);
+    final List<List<String>> memberNames = [];
+    for (final tm in t) {
+      final List<String> tmp = [];
+      for (final mmbr in tm.data()!['members']) {
+        tmp.add((await db.collection('codes').doc(mmbr).get()).data()!['name']);
+      }
+      memberNames.add(tmp);
+    }
     if (mounted) {
       await showDialog(
         context: context,
@@ -125,6 +133,7 @@ class MakeBookingState extends State<MakeBooking> {
           activityDesc: activities[i].data()!['description'],
           disclaimer: activities[i].data()!['disclaimer'],
           activityId: activities[i].id,
+          memberNames: memberNames,
         ),
       );
     }
@@ -319,6 +328,7 @@ class ManageBookingModal extends ModalView {
   final String activityDesc;
   final String? disclaimer;
   final String activityId;
+  final List<List<String>> memberNames;
 
   const ManageBookingModal({
     required this.i,
@@ -331,6 +341,7 @@ class ManageBookingModal extends ModalView {
     required this.activityDesc,
     required this.disclaimer,
     required this.activityId,
+    required this.memberNames,
     super.key,
   }) : super(title: 'Manage Booking');
 
@@ -393,7 +404,7 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
           DropdownMenuItem<String>(
             value: widget.possibleTeams[k].id,
             child: Text(
-              (widget.possibleTeams[k].data()!['members'] as List).join(', '),
+              widget.memberNames[k].join(', '),
             ),
           ),
         );
