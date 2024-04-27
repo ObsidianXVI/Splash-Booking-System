@@ -133,17 +133,18 @@ class LoginPageState extends State<LoginPage>
               icon: Icon(Icons.account_circle),
             ),
             Tab(
-              text: 'Manage Bookings',
+              text: 'Bookings',
               icon: Icon(Icons.list),
             ),
             Tab(
-              text: 'Manage Teams',
+              text: 'Teams',
               icon: Icon(Icons.groups),
             ),
           ],
         ),
       ),
       body: TabBarView(
+        physics: const NeverScrollableScrollPhysics(),
         controller: tabController,
         children: const [
           AccountView(),

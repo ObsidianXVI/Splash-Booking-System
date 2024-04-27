@@ -150,10 +150,12 @@ class MakeBookingState extends State<MakeBooking> {
         children: [
           Positioned(
             top: 200,
-            child: Image.asset(
-              'images/acsplash_white.png',
-              width: MediaQuery.of(context).size.width * 0.7,
-              opacity: const AlwaysStoppedAnimation(0.2),
+            child: Opacity(
+              opacity: 0.2,
+              child: Image.asset(
+                'images/acsplash_white.png',
+                width: MediaQuery.of(context).size.width * 0.7,
+              ),
             ),
           ),
           Padding(
