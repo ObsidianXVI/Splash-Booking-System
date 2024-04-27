@@ -9,6 +9,7 @@ import 'package:googleapis/logging/v2.dart';
 import 'package:googleapis_auth/auth_io.dart';
 import 'package:logger/logger.dart';
 
+part './account.dart';
 part './make_booking.dart';
 part './manage_team.dart';
 part './modal_view.dart';
@@ -94,13 +95,9 @@ class LoginPage extends StatefulWidget {
 
 class LoginPageState extends State<LoginPage>
     with SingleTickerProviderStateMixin {
-  final TextEditingController controller = TextEditingController();
   late final TabController tabController;
 
-  bool showBottomHint = false;
-  bool enabled = false;
-  bool showBottomErr = false;
-  String? userName;
+  static bool enabled = false;
 
   @override
   void initState() {
@@ -148,98 +145,10 @@ class LoginPageState extends State<LoginPage>
       ),
       body: TabBarView(
         controller: tabController,
-        children: [
-          Stack(
-            alignment: Alignment.topCenter,
-            children: [
-              Positioned(
-                top: 200,
-                child: Image.asset(
-                  'images/acsplash_white.png',
-                  width: MediaQuery.of(context).size.width * 0.7,
-                  opacity: const AlwaysStoppedAnimation(0.2),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(left: 20, right: 20),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 50),
-                    const Text(
-                      "Please login using your booking code.\nIf you don't have one, click the button below to fill out the form, and a code will be sent to you via Teams.",
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 10),
-                    TextButton(
-                      style: splashButtonStyle(),
-                      onPressed: () {
-                        html.window.open(
-                          "https://forms.office.com/r/C3HzgSVVLD",
-                          'Get Booking Code',
-                        );
-                      },
-                      child: const Text("Get booking code"),
-                    ),
-                    const SizedBox(height: 40),
-                    SizedBox(
-                      width: 400,
-                      child: TextField(
-                        cursorColor: yellow,
-                        autofocus: true,
-                        controller: controller,
-                        decoration: InputDecoration(
-                          enabledBorder: UnderlineInputBorder(
-                            borderSide: BorderSide(
-                              color: yellow.withOpacity(0.3),
-                            ),
-                          ),
-                          focusedBorder: const UnderlineInputBorder(
-                            borderSide: BorderSide(
-                              color: yellow,
-                            ),
-                          ),
-                        ),
-                        onSubmitted: (String bookingId) async {
-                          bookingId = bookingId.trim().toLowerCase();
-                          final codeDoc = (await db
-                              .collection('codes')
-                              .doc(bookingId)
-                              .get());
-                          final bool codeIsValid = codeDoc.exists;
-                          if (!codeIsValid) {
-                            setState(() {
-                              enabled = false;
-                              showBottomHint = false;
-                              showBottomErr = true;
-                            });
-                          } else {
-                            setState(() {
-                              enabled = true;
-                              userId = bookingId;
-                              userName = codeDoc.data()!['name'];
-                              showBottomHint = true;
-                              showBottomErr = false;
-                            });
-                          }
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 30),
-                    if (showBottomErr) const Text("Booking code not found."),
-                    if (userName != null && showBottomHint)
-                      Text("Hello $userName!"),
-                    if (showBottomHint)
-                      const Text(
-                        "Please use the tabs above to create/view/edit bookings, and to choose team members to register with.",
-                        textAlign: TextAlign.center,
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const MakeBooking(),
-          const ManageTeam(),
+        children: const [
+          AccountView(),
+          MakeBooking(),
+          ManageTeam(),
         ],
       ),
     );
