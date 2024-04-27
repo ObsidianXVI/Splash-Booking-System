@@ -32,6 +32,9 @@ dependencies:
   firebase_core: ^2.27.0
   flutter:
     sdk: flutter
+  googleapis: ^13.1.0
+  googleapis_auth: ^1.6.0
+  logger: ^2.2.0
 
 dev_dependencies:
   flutter_test:

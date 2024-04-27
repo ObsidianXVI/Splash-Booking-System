@@ -4,7 +4,10 @@ import 'dart:html' as html;
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:splash_booking/firebase_configs.dart';
+import 'package:splash_booking/configs.dart';
+import 'package:googleapis/logging/v2.dart';
+import 'package:googleapis_auth/auth_io.dart';
+import 'package:logger/logger.dart';
 
 part './make_booking.dart';
 part './manage_team.dart';
@@ -12,6 +15,7 @@ part './modal_view.dart';
 part './styles.dart';
 part './db.dart';
 part './utils.dart';
+part './logging.dart';
 
 const Color blue = Color(0xFF111B2D);
 const Color red = Color(0xFFF02D3A);
@@ -24,10 +28,29 @@ final db = FirebaseFirestore.instance
     8082,
   );
 
+final GoogleCloudLoggingService loggingService = GoogleCloudLoggingService();
+final Logger logger = Logger();
+
 late String userId;
 
 void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: webOptions);
+  await loggingService.setupLoggingApi();
+  Logger.addOutputListener((event) {
+    loggingService.writeLog(
+      level: event.level,
+      message: event.lines.join('\n'),
+    );
+    debugPrint('App will log output to Cloud Logging');
+  });
+  FlutterError.onError = ((details) {
+    FlutterError.presentError(details);
+    logger.e(
+      "ERR: ${details.summary} (${details.exception})",
+      stackTrace: details.stack,
+    );
+  });
   runApp(const SplashApp());
 }
 
@@ -114,7 +137,7 @@ class LoginPageState extends State<LoginPage>
             ),
             Tab(
               text: 'Manage Bookings',
-              icon: Icon(Icons.format_list_bulleted),
+              icon: Icon(Icons.list),
             ),
             Tab(
               text: 'Manage Teams',
@@ -151,7 +174,7 @@ class LoginPageState extends State<LoginPage>
                       style: splashButtonStyle(),
                       onPressed: () {
                         html.window.open(
-                          "https://forms.office.com/r/Sczzgk4SqU?origin=lprLink",
+                          "https://forms.office.com/r/C3HzgSVVLD",
                           'Get Booking Code',
                         );
                       },

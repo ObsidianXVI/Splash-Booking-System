@@ -443,6 +443,7 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
       for (final memCode in memCodes) {
         if (memCode == userId) continue;
         final memDoc = await db.collection('codes').doc(memCode).get();
+        if (!memDoc.data()!.containsKey('bookings')) continue;
         for (final bkId in memDoc.data()!['bookings']) {
           final bking = await db.collection('bookings').doc(bkId).get();
           final act = await db
