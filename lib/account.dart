@@ -29,7 +29,11 @@ class AccountViewState extends State<AccountView> {
                 ),
               ),
             ),
-            onPressed: () {
+            onPressed: () async {
+              await loggingService.writeLog(
+                level: Level.debug,
+                message: "Using existing booking code",
+              );
               setState(() {
                 item = 1;
               });
@@ -51,7 +55,11 @@ class AccountViewState extends State<AccountView> {
                 ),
               ),
             ),
-            onPressed: () {
+            onPressed: () async {
+              await loggingService.writeLog(
+                level: Level.debug,
+                message: "Requested booking code gen",
+              );
               setState(() {
                 item = 2;
               });
@@ -130,12 +138,22 @@ class BookingCodeEntryState extends State<BookingCodeEntry> {
                   (await db.collection('codes').doc(bookingId).get());
               final bool codeIsValid = codeDoc.exists;
               if (!codeIsValid) {
+                await loggingService.writeLog(
+                  level: Level.warning,
+                  message:
+                      "Rejected booking code ($bookingId) >> Doc exists: $codeIsValid",
+                );
+
                 setState(() {
                   LoginPageState.enabled = false;
                   showBottomHint = false;
                   showBottomErr = true;
                 });
               } else {
+                await loggingService.writeLog(
+                  level: Level.warning,
+                  message: "Allowed booking code ($bookingId)",
+                );
                 setState(() {
                   LoginPageState.enabled = true;
                   userId = bookingId;
@@ -202,9 +220,7 @@ class BookingCodeGeneratorState extends State<BookingCodeGenerator> {
             children: [
               const SizedBox(height: 20),
               const Text(
-                """Click on the button below to fill out the form and generate a booking code.""",
-                //"Please login using your booking code.\nIf you don't have one, click the button below to fill out the form, and a code will be sent to you via Teams.",
-              ),
+                  "Click on the button below to fill out the form and generate a booking code."),
               const SizedBox(height: 20),
               TextButton(
                 style: splashButtonStyle(),
@@ -243,7 +259,7 @@ class BookingCodeGeneratorState extends State<BookingCodeGenerator> {
             children: [
               const SizedBox(height: 20),
               const Text(
-                """Enter your Teams username. For example, the username for '69ben.dover@acsians.acsi.edu.sg' is '69ben.dover'.""",
+                """Enter your Teams username. For example, the username for '96dover.road@acsians.acsi.edu.sg' is '96dover.road'.""",
               ),
               const SizedBox(height: 20),
               SizedBox(
@@ -270,15 +286,27 @@ class BookingCodeGeneratorState extends State<BookingCodeGenerator> {
                         (await db.collection('requests').doc(teamsId).get());
                     final bool idIsValid = codeDoc.exists;
                     if (!idIsValid) {
+                      await loggingService.writeLog(
+                        level: Level.warning,
+                        message:
+                            "TeamsID Entry: Rejected ($teamsId) >> Request does not exist",
+                      );
+
                       setState(() {
                         step2Err = true;
                         code = null;
                       });
                     } else {
+                      await loggingService.writeLog(
+                        level: Level.info,
+                        message:
+                            "TeamsID Entry: Activated ($teamsId) >> Code ($userId)",
+                      );
                       setState(() {
                         activeTile += 1;
                         step2Err = false;
                         userId = code = codeDoc.data()!['code'];
+
                         LoginPageState.enabled = true;
                       });
                       await db.collection('requests').doc(teamsId).delete();
@@ -295,7 +323,7 @@ class BookingCodeGeneratorState extends State<BookingCodeGenerator> {
               ),
               const SizedBox(height: 30),
               if (step2Err)
-                const SelectableText(
+                const Text(
                   "This Teams ID has not requested for a code. Ensure there are no typos and the form has been submitted.",
                 ),
               const SizedBox(height: 20),
@@ -323,7 +351,7 @@ class BookingCodeGeneratorState extends State<BookingCodeGenerator> {
                 """Your booking code is (please note it down):""",
               ),
               const SizedBox(height: 20),
-              Text(
+              SelectableText(
                 code ?? 'Please complete the previous steps',
                 style: const TextStyle(
                   fontSize: 24,
@@ -339,25 +367,6 @@ class BookingCodeGeneratorState extends State<BookingCodeGenerator> {
           ),
         ),
       ],
-      /* children: [
-        const SizedBox(height: 50),
-        const Text(
-          """Click on the button below to fill out the form and generate a booking code.""",
-          //"Please login using your booking code.\nIf you don't have one, click the button below to fill out the form, and a code will be sent to you via Teams.",
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 10),
-        TextButton(
-          style: splashButtonStyle(),
-          onPressed: () {
-            html.window.open(
-              "https://forms.office.com/r/C3HzgSVVLD",
-              'Get Booking Code',
-            );
-          },
-          child: const Text("Get booking code"),
-        ),
-      ], */
     );
   }
 }

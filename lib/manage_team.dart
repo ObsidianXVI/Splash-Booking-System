@@ -75,16 +75,23 @@ class ManageTeamState extends State<ManageTeam> {
     DocumentSnapshot<Map<String, dynamic>>? tData,
     bool hasBooking,
   ) async {
-    await showDialog(
-      context: context,
-      builder: (ctx) => EditTeamMembersModal(
-        booking: booking,
-        teamData: tData,
-        hasBooking: hasBooking,
-        memberNames: membersNames[tData!.id]!,
-        viewState: this,
-      ),
+    await loggingService.writeLog(
+      level: Level.info,
+      message:
+          "mt.78: Edit Team dialog requested booking(${booking?.id}), team(${tData?.id}), hasBooking($hasBooking)",
     );
+    if (mounted) {
+      await showDialog(
+        context: context,
+        builder: (ctx) => EditTeamMembersModal(
+          booking: booking,
+          teamData: tData,
+          hasBooking: hasBooking,
+          memberNames: membersNames[tData!.id]!,
+          viewState: this,
+        ),
+      );
+    }
 
     await resetState();
     setState(() {});
@@ -134,32 +141,41 @@ class ManageTeamState extends State<ManageTeam> {
                     items.addAll([
                       Center(
                         child: Container(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
+                          width: MediaQuery.of(context).size.width - 40,
+                          height: 100,
+                          child: Stack(
                             children: [
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  if (hasBooking)
-                                    Text(
-                                      activityNames[bookings[tid]]!,
-                                      textAlign: TextAlign.right,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
+                              Positioned(
+                                left: 0,
+                                top: 0,
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    if (hasBooking)
+                                      Text(
+                                        activityNames[bookings[tid]]!,
+                                        textAlign: TextAlign.right,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
-                                    ),
-                                  Text(membersNames[tid]!.join(', ')),
-                                ],
-                              ),
-                              const SizedBox(width: 10),
-                              TextButton(
-                                style: splashButtonStyle(),
-                                onPressed: () => editTeamDialog(
-                                  bookingData[bookings[tid]],
-                                  teamData[tid],
-                                  hasBooking,
+                                    Text(membersNames[tid]!.join(', ')),
+                                  ],
                                 ),
-                                child: const Text("Edit Team"),
+                              ),
+                              Positioned(
+                                right: 0,
+                                top: 0,
+                                child: TextButton(
+                                  style: splashButtonStyle(),
+                                  onPressed: () => editTeamDialog(
+                                    bookingData[bookings[tid]],
+                                    teamData[tid],
+                                    hasBooking,
+                                  ),
+                                  child: const Text("Edit Team"),
+                                ),
                               ),
                             ],
                           ),

@@ -10,7 +10,6 @@ class MakeBooking extends StatefulWidget {
 class MakeBookingState extends State<MakeBooking> {
   bool hasFetched = false;
   final Map<String, DocumentSnapshot<Map<String, dynamic>>> bookings = {};
-  // final List<DocumentSnapshot<JSON>> involvedBookings = [];
   final List<DocumentSnapshot<Map<String, dynamic>>> activities = [];
   final List<DateTime> bookingStartTimes = [];
   final List<DateTime> bookingEndTimes = [];
@@ -50,7 +49,6 @@ class MakeBookingState extends State<MakeBooking> {
     activities.clear();
     slots.clear();
     remaining.clear();
-    // involvedBookings.clear();
     bookingStartTimes.clear();
     bookingEndTimes.clear();
   }
@@ -66,9 +64,6 @@ class MakeBookingState extends State<MakeBooking> {
       bookingEndTimes
           .add(start.add(Duration(minutes: act.data()!['slotSize'])));
     }
-
-    /* involvedBookings.addAll(
-        (await db.collection('codes').doc(userId).get()).data()!['bookings']); */
   }
 
   Future<List<DocumentSnapshot<JSON>>> getTeams(int minMemberCount) async {
@@ -129,10 +124,8 @@ class MakeBookingState extends State<MakeBooking> {
           instance: this,
           possibleTeams: t,
           teamSize: tsize,
-          activityName: activities[i].data()!['name'],
-          activityDesc: activities[i].data()!['description'],
           disclaimer: activities[i].data()!['disclaimer'],
-          activityId: activities[i].id,
+          activity: activities[i],
           memberNames: memberNames,
         ),
       );
@@ -185,10 +178,13 @@ class MakeBookingState extends State<MakeBooking> {
                           final String actId = activities[i].id;
                           final bool hasBeenBooked =
                               bookings.containsKey(actId);
+                          final bool isOwnBooking = hasBeenBooked
+                              ? bookings[actId]!.data()!['userId'] == userId
+                              : false;
                           final List<Widget> buttonContent = [
                             if (hasBeenBooked)
                               Text(
-                                  "Booked for ${slots[i][bookings[actId]!.data()!['slot']]}"),
+                                  "Booked ${isOwnBooking ? '' : "by team"} for ${slots[i][bookings[actId]!.data()!['slot']]}"),
                             if (!hasBeenBooked)
                               ...List<Text>.generate(slots[i].length, (int sl) {
                                 return Text(
@@ -225,24 +221,36 @@ class MakeBookingState extends State<MakeBooking> {
                                       if (!hasBeenBooked)
                                         TextButton(
                                           style: splashButtonStyle(),
-                                          onPressed: () => bookingDialog(i),
+                                          onPressed: () async {
+                                            await loggingService.writeLog(
+                                              level: Level.info,
+                                              message:
+                                                  "mb.226: Create booking requested",
+                                            );
+
+                                            bookingDialog(i);
+                                          },
                                           child: const Text("Book This"),
                                         ),
-                                      if (hasBeenBooked) ...[
+                                      if (hasBeenBooked && isOwnBooking) ...[
                                         TextButton(
                                           style: splashButtonStyle(),
                                           onPressed: () async {
-                                            final b = (await db
-                                                    .collection('bookings')
-                                                    .where('userId',
-                                                        isEqualTo: userId)
-                                                    .where('activityId',
-                                                        isEqualTo:
-                                                            activities[i].id)
-                                                    .get())
-                                                .docs
-                                                .first;
-                                            bookingDialog(i, b.data()['slot']);
+                                            await loggingService.writeLog(
+                                              level: Level.info,
+                                              message:
+                                                  "mb.236: Edit booking requested",
+                                            );
+                                            await loggingService.writeLog(
+                                              level: Level.info,
+                                              message:
+                                                  "Looking for booking of activity (${activities[i].id})",
+                                            );
+                                            final b =
+                                                bookings[activities[i].id]!;
+
+                                            await bookingDialog(
+                                                i, b.data()!['slot']);
                                           },
                                           child: const Text("Edit booking"),
                                         ),
@@ -250,6 +258,12 @@ class MakeBookingState extends State<MakeBooking> {
                                         TextButton(
                                           style: splashButtonStyle(),
                                           onPressed: () async {
+                                            await loggingService.writeLog(
+                                              level: Level.warning,
+                                              message:
+                                                  "mb.256: Remove booking requested",
+                                            );
+
                                             final bking =
                                                 bookings[activities[i].id];
                                             remaining[i]
@@ -285,6 +299,11 @@ class MakeBookingState extends State<MakeBooking> {
                                             bookings.remove(activities[i].id);
                                             hasFetched = true;
                                             setState(() {});
+                                            await loggingService.writeLog(
+                                              level: Level.info,
+                                              message:
+                                                  "mb.293: Removed booking",
+                                            );
                                           },
                                           child: const Text("Remove booking"),
                                         ),
@@ -326,10 +345,8 @@ class ManageBookingModal extends ModalView {
   final MakeBookingState instance;
   final int teamSize;
   final String? oldTeamId;
-  final String activityName;
-  final String activityDesc;
+  final DocumentSnapshot<JSON> activity;
   final String? disclaimer;
-  final String activityId;
   final List<List<String>> memberNames;
 
   const ManageBookingModal({
@@ -339,10 +356,8 @@ class ManageBookingModal extends ModalView {
     required this.instance,
     required this.possibleTeams,
     required this.teamSize,
-    required this.activityName,
-    required this.activityDesc,
+    required this.activity,
     required this.disclaimer,
-    required this.activityId,
     required this.memberNames,
     super.key,
   }) : super(title: 'Manage Booking');
@@ -360,27 +375,69 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
 
   @override
   void initState() {
+    loggingService.writeLog(
+      level: Level.info,
+      message:
+          "Showing BookingModal for activity (${widget.activity.id}) (${widget.activity.data()!['name']})",
+    );
+
     chosenSlot = widget.oldSlot ?? 0;
+
+    /**
+     * for each slot, iterate over bookings
+     * check if each booking's start time and end time overlap with this slot's start and end
+     */
+
     for (int j = 0; j < widget.instance.slots[widget.i].length; j++) {
       bool overlapping = false;
+      final bookingEntries = widget.instance.bookings.entries;
       for (int k = 0; k < widget.instance.bookings.length; k++) {
-        if (widget.instance.bookings.entries
-                .elementAt(k)
-                .value
-                .data()!['activityId'] ==
-            widget.activityId) continue;
+        if (bookingEntries.elementAt(k).value.data()!['activityId'] ==
+            widget.activity.id) continue;
         if (dtFrom24H(widget.instance.slots[widget.i][j]).isBetweenOrOn(
-            widget.instance.bookingStartTimes[k],
-            widget.instance.bookingEndTimes[k])) {
+                widget.instance.bookingStartTimes[k],
+                widget.instance.bookingEndTimes[k]) ||
+            dtFrom24H(widget.instance.slots[widget.i][j])
+                .add(Duration(minutes: widget.activity.data()!['slotSize']))
+                .isBetweenOrOn(widget.instance.bookingStartTimes[k],
+                    widget.instance.bookingEndTimes[k])) {
           overlapping = true;
+          loggingService.writeLog(
+            level: Level.info,
+            message:
+                "mb.383: Overlaps with booking(${widget.instance.bookings.entries.elementAt(k).value.id})",
+          );
           break;
         }
       }
+
+      String? reason;
       final bool enbled;
+      // there is a previous booking, and this slot is that previously booked one
       if (widget.oldSlot != null && widget.oldSlot == j) {
         enbled = true;
       } else {
-        enbled = widget.instance.remaining[widget.i][j] > 0 && !overlapping;
+        // there are remaining slots
+        if (widget.instance.remaining[widget.i][j] > 0) {
+          // there is no overlap
+          if (!overlapping) {
+            enbled = true;
+          } else {
+            enbled = false;
+            reason = 'Overlaps with an existing booking';
+            loggingService.writeLog(
+              level: Level.warning,
+              message: "mb.396: Disabled option $j >> Overlapping",
+            );
+          }
+        } else {
+          enbled = false;
+          reason = 'No slots left';
+          loggingService.writeLog(
+            level: Level.warning,
+            message: "mb.400: Disabled option $j >> No slots left",
+          );
+        }
       }
 
       items.add(
@@ -388,7 +445,8 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
           value: j,
           enabled: enbled,
           child: Text(
-            widget.instance.slots[widget.i][j],
+            widget.instance.slots[widget.i][j] +
+                (reason != null ? ' ($reason)' : ''),
             style: TextStyle(
               color: enbled ? yellow : yellow.withOpacity(0.4),
             ),
@@ -472,7 +530,7 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              widget.activityName,
+              widget.activity.data()!['name'],
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
@@ -481,9 +539,14 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
             ),
             const SizedBox(height: 10),
             Text(
-              widget.activityDesc,
+              widget.activity.data()!['description'],
             ),
             const SizedBox(height: 40),
+            if (bottomHint != null)
+              Text(
+                bottomHint!,
+                style: const TextStyle(color: red),
+              ),
             const Text("Select a slot:"),
             const SizedBox(height: 10),
             DropdownButtonFormField(
@@ -499,6 +562,10 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
                   style: splashButtonStyle(),
                   onPressed: (widget.teamSize == 1 || chosenTeam != null)
                       ? () async {
+                          await loggingService.writeLog(
+                            level: Level.info,
+                            message: "mb.550: Modifying booking",
+                          );
                           final act = widget.instance.activities[widget.i];
                           final List<String> memberCodes = chosenTeam != null
                               ? ((await db
@@ -515,15 +582,28 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
                           );
 
                           if (overlaps.isNotEmpty) {
+                            await loggingService.writeLog(
+                              level: Level.warning,
+                              message: "mb.517: Overlaps with $overlaps",
+                            );
                             setState(() {
                               bottomHint =
                                   "${overlaps.length} members (${overlaps.join(', ')}) have bookings that overlap with these timings.";
                             });
+                            await loggingService.writeLog(
+                              level: Level.warning,
+                              message:
+                                  "mb.531: Aborting booking due to overlap",
+                            );
                             return;
                           } else {
                             setState(() {
                               bottomHint = null;
                             });
+                            await loggingService.writeLog(
+                              level: Level.warning,
+                              message: "mb.537: booking resumed",
+                            );
                           }
 
                           if (widget.oldSlot == null) {
@@ -536,8 +616,16 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
                               'slot': chosenSlot,
                               if (widget.teamSize > 1) 'teamId': chosenTeam,
                             });
+                            await loggingService.writeLog(
+                              level: Level.info,
+                              message: "mb.539: Booking created in DB",
+                            );
                             await propagateBookingToMembers(
                                 memberCodes, dref.id);
+                            await loggingService.writeLog(
+                              level: Level.info,
+                              message: "mb.542: Booking propagated to members",
+                            );
                           } else {
                             widget.instance.remaining[widget.i][chosenSlot] -=
                                 1;
@@ -549,6 +637,10 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
                               'slot': chosenSlot,
                               if (widget.teamSize > 1) 'teamId': chosenTeam,
                             });
+                            await loggingService.writeLog(
+                              level: Level.warning,
+                              message: "mb.554: Booking updated in DB",
+                            );
                           }
                           await db.collection('activities').doc(act.id).update({
                             'remaining': widget.instance.remaining[widget.i]
@@ -569,11 +661,6 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
             const SizedBox(height: 40),
             if (widget.disclaimer != null)
               Text("Disclaimer: ${widget.disclaimer}"),
-            if (bottomHint != null)
-              Text(
-                bottomHint!,
-                style: const TextStyle(color: red),
-              ),
           ],
         ),
       ),

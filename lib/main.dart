@@ -1,6 +1,7 @@
 library splash;
 
 import 'dart:html' as html;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -23,6 +24,7 @@ const Color red = Color(0xFFF02D3A);
 const Color yellow = Color(0xFFFFC233);
 bool shownNonRegPromo = false;
 
+//final db = FirebaseFirestore.instance;
 final db = FirebaseFirestore.instance
   ..useFirestoreEmulator(
     '127.0.0.1',
@@ -32,26 +34,29 @@ final db = FirebaseFirestore.instance
 final GoogleCloudLoggingService loggingService = GoogleCloudLoggingService();
 final Logger logger = Logger();
 
-late String userId;
+late String userId = 'null';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: webOptions);
-  await loggingService.setupLoggingApi();
-  Logger.addOutputListener((event) {
+  // await loggingService.setupLoggingApi();
+
+  PlatformDispatcher.instance.onError = ((err, stack) {
     loggingService.writeLog(
-      level: event.level,
-      message: event.lines.join('\n'),
+      level: Level.error,
+      message: "ERR_P: $err\n${stack.toString()}",
     );
-    debugPrint('App will log output to Cloud Logging');
+    return true;
   });
   FlutterError.onError = ((details) {
     FlutterError.presentError(details);
-    logger.e(
-      "ERR: ${details.summary} (${details.exception})",
-      stackTrace: details.stack,
+    loggingService.writeLog(
+      level: Level.error,
+      message:
+          "ERR_F: ${details.summary}\n${details.exceptionAsString()}\n${details.stack}",
     );
   });
+  await loggingService.writeLog(level: Level.info, message: "App launched");
   runApp(const SplashApp());
 }
 
