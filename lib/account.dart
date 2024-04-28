@@ -110,6 +110,17 @@ class BookingCodeEntryState extends State<BookingCodeEntry> {
   bool showBottomErr = false;
   String? userName;
   bool showBottomHint = false;
+
+  @override
+  void initState() {
+    final String? detectedCode = prefs.getString('bookingCode');
+    if (detectedCode != null) {
+      controller.text = detectedCode;
+    }
+
+    super.initState();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -140,8 +151,7 @@ class BookingCodeEntryState extends State<BookingCodeEntry> {
               if (!codeIsValid) {
                 await loggingService.writeLog(
                   level: Level.warning,
-                  message:
-                      "Rejected booking code ($bookingId) >> Doc exists: $codeIsValid",
+                  message: "Rejected booking code ($bookingId)",
                 );
 
                 setState(() {
@@ -154,6 +164,7 @@ class BookingCodeEntryState extends State<BookingCodeEntry> {
                   level: Level.warning,
                   message: "Allowed booking code ($bookingId)",
                 );
+                await prefs.setString('bookingCode', bookingId);
                 setState(() {
                   LoginPageState.enabled = true;
                   userId = bookingId;
@@ -302,6 +313,7 @@ class BookingCodeGeneratorState extends State<BookingCodeGenerator> {
                         message:
                             "TeamsID Entry: Activated ($teamsId) >> Code ($userId)",
                       );
+
                       setState(() {
                         activeTile += 1;
                         step2Err = false;
@@ -309,6 +321,7 @@ class BookingCodeGeneratorState extends State<BookingCodeGenerator> {
 
                         LoginPageState.enabled = true;
                       });
+                      await prefs.setString('bookingCode', userId);
                       await db.collection('requests').doc(teamsId).delete();
                       await db.collection('codes').doc(userId).set({
                         'name': teamsId,

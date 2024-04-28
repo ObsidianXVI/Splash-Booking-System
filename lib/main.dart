@@ -9,6 +9,7 @@ import 'package:splash_booking/configs.dart';
 import 'package:googleapis/logging/v2.dart';
 import 'package:googleapis_auth/auth_io.dart';
 import 'package:logger/logger.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 part './account.dart';
 part './make_booking.dart';
@@ -33,14 +34,12 @@ final db = FirebaseFirestore.instance
 
 final GoogleCloudLoggingService loggingService = GoogleCloudLoggingService();
 final Logger logger = Logger();
+late final SharedPreferences prefs;
 
 late String userId = 'null';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: webOptions);
-  // await loggingService.setupLoggingApi();
-
   PlatformDispatcher.instance.onError = ((err, stack) {
     loggingService.writeLog(
       level: Level.error,
@@ -56,6 +55,11 @@ void main() async {
           "ERR_F: ${details.summary}\n${details.exceptionAsString()}\n${details.stack}",
     );
   });
+
+  await Firebase.initializeApp(options: webOptions);
+  // await loggingService.setupLoggingApi();
+  prefs = await SharedPreferences.getInstance();
+
   await loggingService.writeLog(level: Level.info, message: "App launched");
   runApp(const SplashApp());
 }
@@ -69,6 +73,9 @@ class SplashApp extends StatelessWidget {
       title: 'Splash Booking',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
+        textSelectionTheme: TextSelectionThemeData(
+          selectionColor: yellow.withOpacity(0.3),
+        ),
         primaryColor: blue,
         colorScheme: const ColorScheme(
           brightness: Brightness.dark,
