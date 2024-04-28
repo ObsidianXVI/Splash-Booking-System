@@ -263,7 +263,7 @@ class EditTeamMembersModalState extends ModalViewState<EditTeamMembersModal> {
   void initState() {
     newMembers = widget.teamData != null
         ? (widget.teamData?.data()!['members'] as List).cast<String>()
-        : ['You'];
+        : [userId];
     super.initState();
   }
 

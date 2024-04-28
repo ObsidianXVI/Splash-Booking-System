@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:googleapis/bigtableadmin/v2.dart';
 import 'package:splash_booking/configs.dart';
 import 'package:googleapis/logging/v2.dart';
 import 'package:googleapis_auth/auth_io.dart';
@@ -25,12 +26,12 @@ const Color red = Color(0xFFF02D3A);
 const Color yellow = Color(0xFFFFC233);
 bool shownNonRegPromo = false;
 
-//final db = FirebaseFirestore.instance;
-final db = FirebaseFirestore.instance
+final db = FirebaseFirestore.instance;
+/* final db = FirebaseFirestore.instance
   ..useFirestoreEmulator(
     '127.0.0.1',
     8082,
-  );
+  ); */
 
 final GoogleCloudLoggingService loggingService = GoogleCloudLoggingService();
 final Logger logger = Logger();
@@ -40,7 +41,11 @@ late String userId = 'null';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await loggingService.setupLoggingApi();
+
   PlatformDispatcher.instance.onError = ((err, stack) {
+    print(err);
+    print(stack);
     loggingService.writeLog(
       level: Level.error,
       message: "ERR_P: $err\n${stack.toString()}",
@@ -57,7 +62,6 @@ void main() async {
   });
 
   await Firebase.initializeApp(options: webOptions);
-  // await loggingService.setupLoggingApi();
   prefs = await SharedPreferences.getInstance();
 
   await loggingService.writeLog(level: Level.info, message: "App launched");
