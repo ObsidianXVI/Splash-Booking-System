@@ -29,7 +29,7 @@ class MakeBookingState extends State<MakeBooking> {
             const SnackBar(
               duration: Duration(seconds: 6),
               content: Text(
-                "Do look out for other non-registration games like ACquaslide, Paint Twister, Pose Splasher, Musical Cones and Dunk N Splash!",
+                "Do look out for other non-registration games like ACquaslide, Paint Twister, Pose Splasher and Musical Cones!",
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                 ),
@@ -222,12 +222,6 @@ class MakeBookingState extends State<MakeBooking> {
                                         TextButton(
                                           style: splashButtonStyle(),
                                           onPressed: () async {
-                                            await loggingService.writeLog(
-                                              level: Level.info,
-                                              message:
-                                                  "mb.226: Create booking requested",
-                                            );
-
                                             bookingDialog(i);
                                           },
                                           child: const Text("Book This"),
@@ -236,16 +230,6 @@ class MakeBookingState extends State<MakeBooking> {
                                         TextButton(
                                           style: splashButtonStyle(),
                                           onPressed: () async {
-                                            await loggingService.writeLog(
-                                              level: Level.info,
-                                              message:
-                                                  "mb.236: Edit booking requested",
-                                            );
-                                            await loggingService.writeLog(
-                                              level: Level.info,
-                                              message:
-                                                  "Looking for booking of activity (${activities[i].id})",
-                                            );
                                             final b =
                                                 bookings[activities[i].id]!;
 
@@ -259,15 +243,17 @@ class MakeBookingState extends State<MakeBooking> {
                                           style: splashButtonStyle(),
                                           onPressed: () async {
                                             await loggingService.writeLog(
-                                              level: Level.warning,
+                                              level: Level.info,
                                               message:
-                                                  "mb.256: Remove booking requested",
+                                                  "booking.make_booking: Remove booking requested",
                                             );
 
                                             final bking =
                                                 bookings[activities[i].id];
-                                            remaining[i]
-                                                [bking!.data()!['slot']] += 1;
+                                            remaining[i][bking!
+                                                .data()!['slot']] = remaining[i]
+                                                    [bking.data()!['slot']] +
+                                                1;
                                             await db
                                                 .collection('bookings')
                                                 .doc(bookings[activities[i].id]!
@@ -302,7 +288,7 @@ class MakeBookingState extends State<MakeBooking> {
                                             await loggingService.writeLog(
                                               level: Level.info,
                                               message:
-                                                  "mb.293: Removed booking",
+                                                  "booking.make_booking: Removed booking successfully",
                                             );
                                           },
                                           child: const Text("Remove booking"),
@@ -375,18 +361,7 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
 
   @override
   void initState() {
-    loggingService.writeLog(
-      level: Level.info,
-      message:
-          "Showing BookingModal for activity (${widget.activity.id}) (${widget.activity.data()!['name']})",
-    );
-
     chosenSlot = widget.oldSlot ?? 0;
-
-    /**
-     * for each slot, iterate over bookings
-     * check if each booking's start time and end time overlap with this slot's start and end
-     */
 
     for (int j = 0; j < widget.instance.slots[widget.i].length; j++) {
       bool overlapping = false;
@@ -394,19 +369,16 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
       for (int k = 0; k < widget.instance.bookings.length; k++) {
         if (bookingEntries.elementAt(k).value.data()!['activityId'] ==
             widget.activity.id) continue;
-        if (dtFrom24H(widget.instance.slots[widget.i][j]).isBetweenOrOn(
-                widget.instance.bookingStartTimes[k],
-                widget.instance.bookingEndTimes[k]) ||
-            dtFrom24H(widget.instance.slots[widget.i][j])
+
+        final DateTime dtStartA = dtFrom24H(widget.instance.slots[widget.i][j]);
+        if (dateRangesOverlap(
+            dtStartA.millisecondsSinceEpoch,
+            dtStartA
                 .add(Duration(minutes: widget.activity.data()!['slotSize']))
-                .isBetweenOrOn(widget.instance.bookingStartTimes[k],
-                    widget.instance.bookingEndTimes[k])) {
+                .millisecondsSinceEpoch,
+            widget.instance.bookingStartTimes[k].millisecondsSinceEpoch,
+            widget.instance.bookingEndTimes[k].millisecondsSinceEpoch)) {
           overlapping = true;
-          loggingService.writeLog(
-            level: Level.info,
-            message:
-                "mb.383: Overlaps with booking(${widget.instance.bookings.entries.elementAt(k).value.id})",
-          );
           break;
         }
       }
@@ -425,18 +397,10 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
           } else {
             enbled = false;
             reason = 'Overlaps with an existing booking';
-            loggingService.writeLog(
-              level: Level.warning,
-              message: "mb.396: Disabled option $j >> Overlapping",
-            );
           }
         } else {
           enbled = false;
           reason = 'No slots left';
-          loggingService.writeLog(
-            level: Level.warning,
-            message: "mb.400: Disabled option $j >> No slots left",
-          );
         }
       }
 
@@ -474,6 +438,96 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
     super.initState();
   }
 
+  static Future<Map<String, List<String>>> checkForOverlap(
+    String slotStart,
+    int slotSize,
+    List<String> memCodes, [
+    String? activityIdToCheckDup,
+  ]) async {
+    await loggingService.writeLog(
+        level: Level.info,
+        message:
+            "booking.booking_modal.overlap_checker: START >> slotStart($slotStart), slotSize($slotSize), members($memCodes)");
+    final int thisStart = dtFrom24H(slotStart).millisecondsSinceEpoch;
+    final int thisEnd = thisStart + slotSize * 60000;
+    final List<String> memNames = [];
+    final List<String> dupActNames = [];
+    memCodes[0] = userId;
+    for (final memCode in memCodes) {
+      if (memCode == userId) continue;
+      final memDoc = await db.collection('codes').doc(memCode).get();
+/*         await loggingService.writeLog(
+            level: Level.info, message: "OverlapChecker: NCO@513"); */
+
+      if (!memDoc.data()!.containsKey('bookings')) continue;
+/*         await loggingService.writeLog(
+            level: Level.info, message: "OverlapChecker: NCO@517"); */
+
+      for (final bkId in memDoc.data()!['bookings']) {
+/*           await loggingService.writeLog(
+              level: Level.info,
+              message: "OverlapChecker: Reviewing booking ($bkId)"); */
+        final bking = await db.collection('bookings').doc(bkId).get();
+        await loggingService.writeLog(
+            level: Level.info,
+            message:
+                "OverlapChecker: NCO@521 (${bking.data()}), (${bking.data()?['activityId']}), exists(${bking.exists})");
+
+        final act = await db
+            .collection('activities')
+            .doc(bking.data()!['activityId'])
+            .get();
+/*           await loggingService.writeLog(
+              level: Level.info,
+              message: "OverlapChecker: NCO@530 (${act.data()})"); */
+        if (activityIdToCheckDup != null && activityIdToCheckDup == act.id) {
+          dupActNames.add(memDoc.data()!['name']);
+          await loggingService.writeLog(
+            level: Level.info,
+            message:
+                "booking.booking_modal.overlap_checker: ACT_DUP >> activity($activityIdToCheckDup) for memberCode(${memDoc.id})",
+          );
+        }
+        final DateTime start =
+            dtFrom24H(act.data()!['slots'][bking.data()!['slot']]);
+/*           await loggingService.writeLog(
+              level: Level.info, message: "OverlapChecker: NCO@532"); */
+
+        final DateTime end =
+            start.add(Duration(minutes: act.data()!['slotSize']));
+        if (dateRangesOverlap(start.millisecondsSinceEpoch,
+            end.millisecondsSinceEpoch, thisStart, thisEnd)) {
+          await loggingService.writeLog(
+            level: Level.info,
+            message:
+                "booking.booking_modal.overlap_checker: OVERLAP >> activity(${act.id}) for memberCode(${memDoc.id})",
+          );
+/*           await loggingService.writeLog(
+              level: Level.info,
+              message:
+                  "OverlapChecker: $memCode >> Overlap detected with booking($bkId)"); */
+/*             await loggingService.writeLog(
+                level: Level.info,
+                message: "OverlapChecker: NCO@542 (${memDoc.data()})"); */
+
+          memNames.add(memDoc.data()!['name']);
+        } /*  else {
+            await loggingService.writeLog(
+                level: Level.info,
+                message: "OverlapChecker: $memCode >> clear");
+          } */
+      }
+    }
+    await loggingService.writeLog(
+        level: Level.info,
+        message:
+            "booking.booking_modal.overlap_checker: END >> ${memNames.length} overlaps ($memNames)");
+    return {
+      'bookingOverlaps': memNames,
+      'activityDuplicates': dupActNames,
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     final List<Widget> teamSelectWidgets = [];
@@ -492,76 +546,6 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
             onChanged: (x) => chosenTeam = x ?? chosenTeam,
           ),
       ]);
-    }
-
-    Future<List<String>> checkForOverlap(
-        String slotStart, int slotSize, List<String> memCodes) async {
-      await loggingService.writeLog(
-          level: Level.info,
-          message:
-              "OverlapChecker: START >> slotStart($slotStart), slotSize($slotSize), members($memCodes)");
-      final int thisStart = dtFrom24H(slotStart).millisecondsSinceEpoch;
-      final int thisEnd = thisStart + slotSize * 60000;
-      final List<String> memNames = [];
-      memCodes[0] = userId;
-      for (final memCode in memCodes) {
-        if (memCode == userId) continue;
-        final memDoc = await db.collection('codes').doc(memCode).get();
-        await loggingService.writeLog(
-            level: Level.info, message: "OverlapChecker: NCO@513");
-
-        if (!memDoc.data()!.containsKey('bookings')) continue;
-        await loggingService.writeLog(
-            level: Level.info, message: "OverlapChecker: NCO@517");
-
-        for (final bkId in memDoc.data()!['bookings']) {
-          await loggingService.writeLog(
-              level: Level.info,
-              message: "OverlapChecker: Reviewing booking ($bkId)");
-          final bking = await db.collection('bookings').doc(bkId).get();
-          await loggingService.writeLog(
-              level: Level.info,
-              message:
-                  "OverlapChecker: NCO@521 (${bking.data()}), (${bking.data()?['activityId']}), exists(${bking.exists})");
-
-          final act = await db
-              .collection('activities')
-              .doc(bking.data()!['activityId'])
-              .get();
-          await loggingService.writeLog(
-              level: Level.info,
-              message: "OverlapChecker: NCO@530 (${act.data()})");
-
-          final DateTime start =
-              dtFrom24H(act.data()!['slots'][bking.data()!['slot']]);
-          await loggingService.writeLog(
-              level: Level.info, message: "OverlapChecker: NCO@532");
-
-          final DateTime end =
-              start.add(Duration(minutes: act.data()!['slotSize']));
-          if (dateRangesOverlap(start.millisecondsSinceEpoch,
-              end.millisecondsSinceEpoch, thisStart, thisEnd)) {
-            await loggingService.writeLog(
-                level: Level.info,
-                message:
-                    "OverlapChecker: $memCode >> Overlap detected with booking($bkId)");
-            await loggingService.writeLog(
-                level: Level.info,
-                message: "OverlapChecker: NCO@542 (${memDoc.data()})");
-
-            memNames.add(memDoc.data()!['name']);
-          } else {
-            await loggingService.writeLog(
-                level: Level.info,
-                message: "OverlapChecker: $memCode >> clear");
-          }
-        }
-      }
-      await loggingService.writeLog(
-          level: Level.warning,
-          message:
-              "OverlapChecker: END >> ${memNames.length} overlaps ($memNames)");
-      return memNames;
     }
 
     return modalScaffold(
@@ -615,25 +599,39 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
                                       .data()!['members'] as List)
                                   .cast<String>()
                               : [userId];
+                          await loggingService.writeLog(
+                            level: Level.info,
+                            message:
+                                "booking.booking_modal.update_button: checking for overlap in activity(${act.id}), slot($chosenSlot), members($memberCodes)",
+                          );
                           final overlaps = await checkForOverlap(
                             act.data()!['slots'][chosenSlot],
                             act.data()!['slotSize'] as int,
                             widget.teamSize == 1 ? [userId] : memberCodes,
+                            act.id,
                           );
 
-                          if (overlaps.isNotEmpty) {
-                            await loggingService.writeLog(
-                              level: Level.warning,
-                              message: "mb.594: Overlaps with $overlaps",
-                            );
+                          if (overlaps['bookingOverlaps']!.isNotEmpty) {
                             setState(() {
                               bottomHint =
-                                  "${overlaps.length} members (${overlaps.join(', ')}) have bookings that overlap with these timings.";
+                                  "${overlaps['bookingOverlaps']!.length} members (${overlaps['bookingOverlaps']!.join(', ')}) have bookings that overlap with these timings.";
                             });
                             await loggingService.writeLog(
-                              level: Level.warning,
+                              level: Level.info,
                               message:
-                                  "mb.603: Aborting booking due to overlap",
+                                  "booking.booking_modal.update_button: Aborting booking due to overlap",
+                            );
+                            return;
+                          } else if (overlaps['activityDuplicates']!
+                              .isNotEmpty) {
+                            setState(() {
+                              bottomHint =
+                                  "${overlaps['activityDuplicates']!.length} members (${overlaps['activityDuplicates']!.join(', ')}) have already booked this activity.";
+                            });
+                            await loggingService.writeLog(
+                              level: Level.info,
+                              message:
+                                  "booking.booking_modal.update_button: Aborting booking due to activity duplicates",
                             );
                             return;
                           } else {
@@ -641,8 +639,9 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
                               bottomHint = null;
                             });
                             await loggingService.writeLog(
-                              level: Level.warning,
-                              message: "mb.612: booking allowed",
+                              level: Level.info,
+                              message:
+                                  "booking.booking_modal.update_button: Booking granted",
                             );
                           }
 
@@ -657,15 +656,17 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
                               if (widget.teamSize > 1) 'teamId': chosenTeam,
                             });
                             await loggingService.writeLog(
-                              level: Level.info,
+                              level: Level.warning,
                               message:
-                                  "mb.628: Booking created in DB userId($userId), activityId(${act.id}), slot($chosenSlot)",
+                                  "booking.booking_modal.update_button: Booking created (${dref.id}) activityId(${act.id}), slot($chosenSlot); propagating to members",
                             );
+
                             await propagateBookingToMembers(
                                 memberCodes, dref.id);
                             await loggingService.writeLog(
                               level: Level.info,
-                              message: "mb.635: Booking propagated to members",
+                              message:
+                                  "booking.booking_modal.update_button: Booking propagated (${dref.id}) to members($memberCodes)",
                             );
                           } else {
                             widget.instance.remaining[widget.i][chosenSlot] -=
@@ -678,19 +679,22 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
                               'slot': chosenSlot,
                               if (widget.teamSize > 1) 'teamId': chosenTeam,
                             });
+
                             await loggingService.writeLog(
-                              level: Level.info,
+                              level: Level.warning,
                               message:
-                                  "mb.651: Booking updated in DB userId($userId), activityId(${act.id}), slot($chosenSlot), teamId($chosenTeam)",
+                                  "booking.booking_modal.update_button: Booking updated ($ob) activityId(${act.id}), slot($chosenSlot), team($chosenTeam)",
                             );
                           }
                           await db.collection('activities').doc(act.id).update({
                             'remaining': widget.instance.remaining[widget.i]
                           });
                           await loggingService.writeLog(
-                            level: Level.info,
-                            message: "mb.660: Updating activity availability",
+                            level: Level.warning,
+                            message:
+                                "booking.booking_modal.update_button: Activity availability updated (${act.id}), remaining: ${widget.instance.remaining[widget.i]}",
                           );
+
                           dismiss(context);
                         }
                       : null,

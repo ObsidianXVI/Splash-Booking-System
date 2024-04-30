@@ -78,7 +78,7 @@ class ManageTeamState extends State<ManageTeam> {
     await loggingService.writeLog(
       level: Level.info,
       message:
-          "mt.78: Edit Team dialog requested booking(${booking?.id}), team(${tData?.id}), hasBooking($hasBooking)",
+          "mt.78: Edit Team dialog requested | booking(${booking?.id}), team(${tData?.id}), hasBooking($hasBooking)",
     );
     if (mounted) {
       await showDialog(
@@ -140,15 +140,15 @@ class ManageTeamState extends State<ManageTeam> {
                     bool hasBooking = bookings.containsKey(tid);
                     items.addAll([
                       Center(
-                        child: Container(
-                          width: MediaQuery.of(context).size.width - 40,
-                          height: 100,
-                          child: Stack(
-                            children: [
-                              Positioned(
-                                left: 0,
-                                top: 0,
-                                child: Column(
+                        child: Tooltip(
+                          message: membersNames[tid]!.join(', '),
+                          child: Container(
+                            width: MediaQuery.of(context).size.width - 40,
+                            height: 100,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                Column(
                                   mainAxisSize: MainAxisSize.min,
                                   crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
@@ -160,24 +160,34 @@ class ManageTeamState extends State<ManageTeam> {
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
-                                    Text(membersNames[tid]!.join(', ')),
+                                    Text(
+                                      membersNames[tid]!.join(', '),
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 3,
+                                    ),
+                                    if (hasBooking)
+                                      Text(
+                                        "Teams with bookings cannot be edited.",
+                                        style: TextStyle(
+                                          color: yellow.withOpacity(0.6),
+                                          fontStyle: FontStyle.italic,
+                                        ),
+                                      ),
                                   ],
                                 ),
-                              ),
-                              Positioned(
-                                right: 0,
-                                top: 0,
-                                child: TextButton(
-                                  style: splashButtonStyle(),
-                                  onPressed: () => editTeamDialog(
-                                    bookingData[bookings[tid]],
-                                    teamData[tid],
-                                    hasBooking,
+                                const SizedBox(width: 5),
+                                if (!hasBooking)
+                                  TextButton(
+                                    style: splashButtonStyle(),
+                                    onPressed: () => editTeamDialog(
+                                      bookingData[bookings[tid]],
+                                      teamData[tid],
+                                      hasBooking,
+                                    ),
+                                    child: const Text("Edit Team"),
                                   ),
-                                  child: const Text("Edit Team"),
-                                ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -216,6 +226,7 @@ class ManageTeamState extends State<ManageTeam> {
                               },
                               child: const Text('New Team'),
                             ),
+                            const SizedBox(height: 10),
                           ],
                         ),
                       ),
@@ -258,6 +269,7 @@ class EditTeamMembersModalState extends ModalViewState<EditTeamMembersModal> {
   late final List<String> newMembers;
   bool warn = false;
   int errIndex = -1;
+  String? wsoccErrMsg;
 
   @override
   void initState() {
@@ -373,6 +385,7 @@ class EditTeamMembersModalState extends ModalViewState<EditTeamMembersModal> {
                             .collection('codes')
                             .doc(newMembers[i])
                             .get();
+
                         if (!snap.exists) {
                           invalidMemIndex = i;
                           break;
@@ -396,6 +409,11 @@ class EditTeamMembersModalState extends ModalViewState<EditTeamMembersModal> {
                             .update({
                           'members': newMembers,
                         });
+                        await loggingService.writeLog(
+                          level: Level.warning,
+                          message:
+                              "team.modal.update_button: Team updated (${widget.teamData!.id}) with members($newMembers)",
+                        );
                         widget.viewState.updatedTeamData[widget.teamData!.id] =
                             {
                           'main': userId,
@@ -409,6 +427,11 @@ class EditTeamMembersModalState extends ModalViewState<EditTeamMembersModal> {
                           'members': newMembers,
                         }))
                                 .get());
+                        await loggingService.writeLog(
+                          level: Level.warning,
+                          message:
+                              "team.modal.update_button: Team created (${newTeamData.id}) with members($newMembers)",
+                        );
                         widget.viewState.teamData[newTeamData.id] = newTeamData;
                       }
                       setState(() {
@@ -491,10 +514,20 @@ class EditTeamMembersModalState extends ModalViewState<EditTeamMembersModal> {
                       .update({
                     'remaining': rem,
                   });
+                  await loggingService.writeLog(
+                    level: Level.warning,
+                    message:
+                        "team.modal.delete_button: Activity availability (${widget.booking!.data()!['activityId']}) set to ($rem)",
+                  );
                   await db
                       .collection('bookings')
                       .doc(widget.booking!.id)
                       .delete();
+                  await loggingService.writeLog(
+                    level: Level.warning,
+                    message:
+                        "team.modal.delete_button: Booking deleted (${widget.booking!.id}); propagating to members",
+                  );
                   await propagateBookingToMembers(
                       widget.teamData != null
                           ? ((await db
@@ -512,6 +545,11 @@ class EditTeamMembersModalState extends ModalViewState<EditTeamMembersModal> {
                       .collection('teams')
                       .doc(widget.teamData!.id)
                       .delete();
+                  await loggingService.writeLog(
+                    level: Level.warning,
+                    message:
+                        "team.modal.delete_button: Team deleted (${widget.teamData!.id})",
+                  );
                 }
 
                 widget.viewState.teamData.remove(widget.teamData!.id);
@@ -526,6 +564,11 @@ class EditTeamMembersModalState extends ModalViewState<EditTeamMembersModal> {
             if (warn)
               const Text(
                   "Error: You can't have duplicate members or empty member names."),
+            if (wsoccErrMsg != null)
+              Text(
+                "Error: Team member '$wsoccErrMsg' has already registered for this activity. Due to high demand, duplicate bookings are not allowed for this activity.",
+                style: const TextStyle(color: red),
+              ),
             if (errIndex != -1)
               Text(
                 "Error: Booking code ${newMembers[errIndex]} not found.",

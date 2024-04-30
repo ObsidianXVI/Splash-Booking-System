@@ -30,10 +30,6 @@ class AccountViewState extends State<AccountView> {
               ),
             ),
             onPressed: () async {
-              await loggingService.writeLog(
-                level: Level.debug,
-                message: "Using existing booking code",
-              );
               setState(() {
                 item = 1;
               });
@@ -56,10 +52,6 @@ class AccountViewState extends State<AccountView> {
               ),
             ),
             onPressed: () async {
-              await loggingService.writeLog(
-                level: Level.debug,
-                message: "Requested booking code gen",
-              );
               setState(() {
                 item = 2;
               });
@@ -151,7 +143,8 @@ class BookingCodeEntryState extends State<BookingCodeEntry> {
               if (!codeIsValid) {
                 await loggingService.writeLog(
                   level: Level.warning,
-                  message: "Rejected booking code ($bookingId)",
+                  message:
+                      "account.booking_code_entry: Rejected booking code ($bookingId)",
                 );
 
                 setState(() {
@@ -161,8 +154,9 @@ class BookingCodeEntryState extends State<BookingCodeEntry> {
                 });
               } else {
                 await loggingService.writeLog(
-                  level: Level.warning,
-                  message: "Allowed booking code ($bookingId)",
+                  level: Level.info,
+                  message:
+                      "account.booking_code_entry: Allowed booking code ($bookingId)",
                 );
                 await prefs.setString('bookingCode', bookingId);
                 setState(() {
@@ -300,7 +294,7 @@ class BookingCodeGeneratorState extends State<BookingCodeGenerator> {
                       await loggingService.writeLog(
                         level: Level.warning,
                         message:
-                            "TeamsID Entry: Rejected ($teamsId) >> Request does not exist",
+                            "account.booking_code_gen: Rejected request ($teamsId)",
                       );
 
                       setState(() {
@@ -311,7 +305,7 @@ class BookingCodeGeneratorState extends State<BookingCodeGenerator> {
                       await loggingService.writeLog(
                         level: Level.info,
                         message:
-                            "TeamsID Entry: Activated ($teamsId) >> Code ($userId)",
+                            "account.booking_code_entry: Activated booking user ($teamsId) with code ($userId)",
                       );
 
                       setState(() {

@@ -36,6 +36,8 @@ bool dateRangesOverlap(
   int startB,
   int endB,
 ) {
+  print("$startA - $endA");
+  print("$endA - $endB");
   if (endA < startB || startA > endB) {
     return false;
   } else {

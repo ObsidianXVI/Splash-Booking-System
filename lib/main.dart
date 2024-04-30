@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:googleapis/bigtableadmin/v2.dart';
 import 'package:splash_booking/configs.dart';
 import 'package:googleapis/logging/v2.dart';
 import 'package:googleapis_auth/auth_io.dart';
@@ -36,7 +35,6 @@ final db = FirebaseFirestore.instance;
 final GoogleCloudLoggingService loggingService = GoogleCloudLoggingService();
 final Logger logger = Logger();
 late final SharedPreferences prefs;
-
 late String userId = 'null';
 
 void main() async {
@@ -64,7 +62,6 @@ void main() async {
   await Firebase.initializeApp(options: webOptions);
   prefs = await SharedPreferences.getInstance();
 
-  await loggingService.writeLog(level: Level.info, message: "App launched");
   runApp(const SplashApp());
 }
 
