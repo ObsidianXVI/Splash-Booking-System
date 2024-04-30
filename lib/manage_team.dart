@@ -75,11 +75,11 @@ class ManageTeamState extends State<ManageTeam> {
     DocumentSnapshot<Map<String, dynamic>>? tData,
     bool hasBooking,
   ) async {
-    await loggingService.writeLog(
+/*     await loggingService.writeLog(
       level: Level.info,
       message:
           "mt.78: Edit Team dialog requested | booking(${booking?.id}), team(${tData?.id}), hasBooking($hasBooking)",
-    );
+    ); */
     if (mounted) {
       await showDialog(
         context: context,

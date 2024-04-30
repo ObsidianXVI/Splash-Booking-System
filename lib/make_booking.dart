@@ -468,11 +468,11 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
               level: Level.info,
               message: "OverlapChecker: Reviewing booking ($bkId)"); */
         final bking = await db.collection('bookings').doc(bkId).get();
-        await loggingService.writeLog(
+/*         await loggingService.writeLog(
             level: Level.info,
             message:
                 "OverlapChecker: NCO@521 (${bking.data()}), (${bking.data()?['activityId']}), exists(${bking.exists})");
-
+ */
         final act = await db
             .collection('activities')
             .doc(bking.data()!['activityId'])
@@ -586,10 +586,10 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
                   style: splashButtonStyle(),
                   onPressed: (widget.teamSize == 1 || chosenTeam != null)
                       ? () async {
-                          await loggingService.writeLog(
+                          /* await loggingService.writeLog(
                             level: Level.info,
                             message: "mb.550: Modifying booking",
-                          );
+                          ); */
                           final act = widget.instance.activities[widget.i];
                           final List<String> memberCodes = chosenTeam != null
                               ? ((await db
