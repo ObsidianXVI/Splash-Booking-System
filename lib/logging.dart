@@ -49,6 +49,7 @@ class GoogleCloudLoggingService {
         'project_id': projectId,
         'level': level.name.toUpperCase(),
         'user_id': userId,
+        'version': version,
       };
 
     // Create a write log entries request

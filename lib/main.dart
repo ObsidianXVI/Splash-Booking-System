@@ -24,7 +24,7 @@ const Color blue = Color(0xFF111B2D);
 const Color red = Color(0xFFF02D3A);
 const Color yellow = Color(0xFFFFC233);
 bool shownNonRegPromo = false;
-
+const String version = '1.4.0';
 final db = FirebaseFirestore.instance;
 /* final db = FirebaseFirestore.instance
   ..useFirestoreEmulator(

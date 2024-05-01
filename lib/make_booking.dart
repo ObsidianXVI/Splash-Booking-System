@@ -104,6 +104,8 @@ class MakeBookingState extends State<MakeBooking> {
   }
 
   Future<void> bookingDialog(int i, [int? oldSlot, String? oldTeamId]) async {
+    resetState();
+    await getActivities();
     final tsize = activities[i].data()!['teamSize'];
     final t = await getTeams(tsize);
     final List<List<String>> memberNames = [];
@@ -439,6 +441,7 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
   }
 
   static Future<Map<String, List<String>>> checkForOverlap(
+    String? bookingId,
     String slotStart,
     int slotSize,
     List<String> memCodes, [
@@ -454,16 +457,28 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
     final List<String> dupActNames = [];
     memCodes[0] = userId;
     for (final memCode in memCodes) {
-      if (memCode == userId) continue;
       final memDoc = await db.collection('codes').doc(memCode).get();
 /*         await loggingService.writeLog(
             level: Level.info, message: "OverlapChecker: NCO@513"); */
 
-      if (!memDoc.data()!.containsKey('bookings')) continue;
+      if ((memDoc.data()!['bookings'] as List).isEmpty) {
+        await loggingService.writeLog(
+            level: Level.info,
+            message:
+                "booking.booking_modal.overlap_checker: @$memCode >> skipping due to no bookings on account");
+        continue;
+      }
 /*         await loggingService.writeLog(
             level: Level.info, message: "OverlapChecker: NCO@517"); */
 
       for (final bkId in memDoc.data()!['bookings']) {
+        if (bookingId != null && bkId == bookingId) {
+          await loggingService.writeLog(
+              level: Level.info,
+              message:
+                  "booking.booking_modal.overlap_checker: @$memCode booking($bkId) >> skipping because it is current booking");
+          continue;
+        }
 /*           await loggingService.writeLog(
               level: Level.info,
               message: "OverlapChecker: Reviewing booking ($bkId)"); */
@@ -490,6 +505,7 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
         }
         final DateTime start =
             dtFrom24H(act.data()!['slots'][bking.data()!['slot']]);
+
 /*           await loggingService.writeLog(
               level: Level.info, message: "OverlapChecker: NCO@532"); */
 
@@ -511,17 +527,22 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
                 message: "OverlapChecker: NCO@542 (${memDoc.data()})"); */
 
           memNames.add(memDoc.data()!['name']);
-        } /*  else {
-            await loggingService.writeLog(
-                level: Level.info,
-                message: "OverlapChecker: $memCode >> clear");
-          } */
+        } else {
+          await loggingService.writeLog(
+              level: Level.info,
+              message:
+                  "booking.booking_modal.overlap_checker: @$memCode booking($bkId) >> cleared: (${start.millisecondsSinceEpoch}, ${end.millisecondsSinceEpoch}) does not overlap with this slot ($thisStart, $thisEnd)");
+        }
       }
     }
     await loggingService.writeLog(
         level: Level.info,
         message:
             "booking.booking_modal.overlap_checker: END >> ${memNames.length} overlaps ($memNames)");
+    await loggingService.writeLog(
+        level: Level.info,
+        message:
+            "booking.booking_modal.overlap_checker: END >> ${dupActNames.length} duplicates ($dupActNames)");
     return {
       'bookingOverlaps': memNames,
       'activityDuplicates': dupActNames,
@@ -605,6 +626,11 @@ class ManageBookingModalState extends ModalViewState<ManageBookingModal> {
                                 "booking.booking_modal.update_button: checking for overlap in activity(${act.id}), slot($chosenSlot), members($memberCodes)",
                           );
                           final overlaps = await checkForOverlap(
+                            widget.instance.bookings[act.id]
+                                        ?.data()?['userId'] ==
+                                    userId
+                                ? widget.instance.bookings[act.id]!.id
+                                : null,
                             act.data()!['slots'][chosenSlot],
                             act.data()!['slotSize'] as int,
                             widget.teamSize == 1 ? [userId] : memberCodes,
