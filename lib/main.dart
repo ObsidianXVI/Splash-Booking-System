@@ -36,6 +36,14 @@ final GoogleCloudLoggingService loggingService = GoogleCloudLoggingService();
 final Logger logger = Logger();
 late final SharedPreferences prefs;
 late String userId = 'null';
+const List<String> activitiesOrder = [
+  'MeEnGjM49LPknYsAmHZ3',
+  'qVxoC6aS4udtPaMQ0Llr',
+  'Tikir0hYXKkIpAmCbwoN',
+  'cYCprIYDOMNOGXWmdLrN',
+  'MlOPrwo4WwILMCzFHsBh',
+  'evVXDm6xorWexqYRBXNZ',
+];
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

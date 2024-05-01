@@ -23,6 +23,13 @@ class DB {
         .docs;
   }
 
+  static Future<List<DocumentSnapshot<JSON>>> getActivities() async {
+    return [
+      for (final actid in activitiesOrder)
+        await db.collection('activities').doc(actid).get()
+    ];
+  }
+
   static Future<DocumentSnapshot<JSON>?> getUserWithCode(
       String bookingCode) async {
     final snapshot = (await db.collection('codes').doc(bookingCode).get());

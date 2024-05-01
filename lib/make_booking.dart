@@ -80,10 +80,10 @@ class MakeBookingState extends State<MakeBooking> {
   Future<void> getActivities() async {
     if (hasFetched) return;
 
-    for (final a in (await db.collection('activities').get()).docs) {
+    for (final a in await DB.getActivities()) {
       activities.add(a);
-      slots.add((a.data()['slots'] as List).cast<String>());
-      remaining.add((a.data()['remaining'] as List).cast<int>());
+      slots.add((a.data()!['slots'] as List).cast<String>());
+      remaining.add((a.data()!['remaining'] as List).cast<int>());
     }
     await getBookings();
 
