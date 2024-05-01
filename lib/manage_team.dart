@@ -134,7 +134,16 @@ class ManageTeamState extends State<ManageTeam> {
                     ],
                   );
                 } else {
-                  final List<Widget> items = [];
+                  final List<Widget> items = [
+                    const Text(
+                      "These are only the teams YOU have CREATED, not all the teams you are a part of.",
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                        "Hover/Long-press to view full list of members in each team."),
+                    const SizedBox(height: 40),
+                  ];
                   for (int i = 0; i < teamData.length; i++) {
                     final String tid = teamData.keys.elementAt(i);
                     bool hasBooking = bookings.containsKey(tid);
@@ -148,44 +157,50 @@ class ManageTeamState extends State<ManageTeam> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.end,
                               children: [
-                                Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    if (hasBooking)
+                                SizedBox(
+                                  width:
+                                      MediaQuery.of(context).size.width - 160,
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      if (hasBooking)
+                                        Text(
+                                          activityNames[bookings[tid]]!,
+                                          textAlign: TextAlign.right,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
                                       Text(
-                                        activityNames[bookings[tid]]!,
+                                        membersNames[tid]!.join(', '),
                                         textAlign: TextAlign.right,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                        maxLines: 3,
                                       ),
-                                    Text(
-                                      membersNames[tid]!.join(', '),
-                                      overflow: TextOverflow.ellipsis,
-                                      maxLines: 3,
-                                    ),
-                                    if (hasBooking)
-                                      Text(
-                                        "Teams with bookings cannot be edited.",
-                                        style: TextStyle(
-                                          color: yellow.withOpacity(0.6),
-                                          fontStyle: FontStyle.italic,
+                                      if (hasBooking)
+                                        Text(
+                                          "Teams with bookings cannot be edited.",
+                                          style: TextStyle(
+                                            color: yellow.withOpacity(0.6),
+                                            fontStyle: FontStyle.italic,
+                                          ),
                                         ),
-                                      ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                                 const SizedBox(width: 5),
-                                if (!hasBooking)
-                                  TextButton(
-                                    style: splashButtonStyle(),
-                                    onPressed: () => editTeamDialog(
-                                      bookingData[bookings[tid]],
-                                      teamData[tid],
-                                      hasBooking,
-                                    ),
-                                    child: const Text("Edit Team"),
-                                  ),
+                                !hasBooking
+                                    ? TextButton(
+                                        style: splashButtonStyle(),
+                                        onPressed: () => editTeamDialog(
+                                          bookingData[bookings[tid]],
+                                          teamData[tid],
+                                          hasBooking,
+                                        ),
+                                        child: const Text("Edit Team"),
+                                      )
+                                    : const SizedBox(width: 95),
                               ],
                             ),
                           ),
